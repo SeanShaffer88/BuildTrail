@@ -178,11 +178,11 @@ class BuildTests(unittest.TestCase):
         env = dict(os.environ, LOCALAPPDATA=str(self.base / 'local'), XDG_DATA_HOME=str(self.base / 'local'),
                    PYTHONIOENCODING='cp1252:strict')
         result = subprocess.run([sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'run', str(recipe)],
-            capture_output=True, text=True, env=env, timeout=20)
+            capture_output=True, text=True, encoding='cp1252', env=env, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         record = self.store.entries()[0]
         result = subprocess.run([sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'report', record['id'], '-o', str(self.base / 'report.html')],
-            capture_output=True, text=True, env=env, timeout=20)
+            capture_output=True, text=True, encoding='cp1252', env=env, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('cli ok', (self.base / 'report.html').read_text(encoding='utf-8'))
 
