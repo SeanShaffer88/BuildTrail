@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-21
+
+- Export verified side-by-side build logs to a standalone offline HTML report.
+- Search both logs; navigate matches, errors/warnings and changes, with severity/build filters and synchronized scrolling.
+- Preserve the log window's search, filters and theme; provide CLI HTML export with `logs BEFORE AFTER -o logs.html`.
+- Escape all captured content, restrict script execution with a CSP hash, and disclose bounded previews and heuristic diagnostics.
+
 ## 0.3.0 — 2026-10-21
 
 - Side-by-side saved build logs with original line numbers, aligned change rows, synchronized scrolling, and previous/next change navigation.

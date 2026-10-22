@@ -33,6 +33,7 @@ def main():
     logs = sub.add_parser('logs', help='Open two saved logs in the side-by-side review window')
     logs.add_argument('before')
     logs.add_argument('after')
+    logs.add_argument('-o', '--output', type=Path, help='Export an offline side-by-side HTML report instead of opening a window')
     args = parser.parse_args()
     try:
         if args.command in (None, 'gui'):
@@ -49,6 +50,11 @@ def main():
         store = BuildStore(args.data_dir)
         if args.command == 'logs':
             before, after = store.load(args.before), store.load(args.after)
+            if args.output:
+                from .logreport import export_log_report
+                export_log_report(store, before, after, args.output)
+                print('Exported:', args.output.resolve())
+                return 0
             import tkinter as tk
             from .logview import LogDiffWindow
             from ._apptrail.theme import Theme

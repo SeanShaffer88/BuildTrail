@@ -29,7 +29,9 @@ jobs:
       - if: matrix.python == '3.15'
         run: python tests/make_report_fixture.py work/report.html
       - if: matrix.python == '3.15'
-        run: node tests/report_browser.cjs work/report.html
+        run: |
+          node tests/report_browser.cjs work/report.html
+          node tests/logreport_browser.cjs work/report.logs.html
         env:
           BUILDTRAIL_PLAYWRIGHT: ${{ github.workspace }}/work/browser-tools/node_modules/playwright
 

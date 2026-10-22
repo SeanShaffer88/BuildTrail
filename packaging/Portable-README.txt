@@ -1,4 +1,4 @@
-BuildTrail 0.3.0 — Windows x64 portable edition
+BuildTrail 0.4.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -75,3 +75,10 @@ Side-by-side build logs:
   normalized. Large edited middles may align by position, explicitly noted.
 - Error/warning matches are heuristics for common compiler/log formats, not a
   complete parser or a substitute for the captured exit code.
+
+SIDE-BY-SIDE HTML EXPORT
+Choose Export HTML in the log comparison window to save a standalone offline
+report with search, error/warning and change navigation. Current search, filters
+and theme are preserved. JavaScript enables interactive controls; no network is
+used. CLI: BuildTrail.exe --data-dir LIBRARY logs BEFORE AFTER -o logs.html
+Saved logs are verified again before export; preview limits are disclosed.

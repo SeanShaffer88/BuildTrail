@@ -25,3 +25,7 @@ Bounded difflib alignment, literal str.find-based Unicode search, and conservati
 compiler/log diagnostic heuristics need no runtime package or network service.
 Tests cover long repetitive inputs, Unicode offsets, evidence hashes, navigation,
 scroll synchronization, and window/theme callback cleanup.
+
+## Offline side-by-side log export (0.4.0)
+
+Reuses the verified, bounded standard-library log model. Python html.escape and atomic_write generate a self-contained HTML file; browser DOM APIs render search marks as text, with no external libraries or requests. A SHA-256 Content Security Policy allows only the embedded navigation script. Existing browser tests now also check log exports in Edge, including settings, navigation, escaped untrusted text, offline behavior and readable no-JavaScript fallback. No new dependency or vendored AppTrail modification.

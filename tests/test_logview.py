@@ -184,3 +184,42 @@ class LogViewTests(unittest.TestCase):
         with patch('buildtrail.gui.messagebox.showinfo') as info:
             self.assertIsNone(self.app.compare_selected_logs())
         info.assert_called_once()
+
+    def test_export_preserves_settings_and_revalidates_evidence(self):
+        window = self.open()
+        window.query.set('a+b')
+        window.match_case.set(True)
+        window.issue_kind.set('Errors')
+        window.issue_side.set('After')
+        self.app.theme.mode.set('light')
+        target = self.base / 'logs.html'
+        with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showinfo') as info:
+            window.export_html()
+        info.assert_called_once()
+        html = target.read_text(encoding='utf-8')
+        self.assertIn('value="a+b"', html)
+        self.assertIn('value="error" selected', html)
+        self.assertIn('value="after" selected', html)
+        self.assertIn('<body class="light">', html)
+        self.assertIn('type="checkbox" checked', html)
+        original = target.read_bytes()
+        self.store.evidence(self.after, 'build.log').write_bytes(b'tampered')
+        with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showerror') as error:
+            window.export_html()
+        error.assert_called_once()
+        self.assertEqual(target.read_bytes(), original)
+
+    def test_cli_log_html_and_managed_paths(self):
+        import subprocess
+        from buildtrail.logreport import export_log_report
+        from buildtrail._apptrail.history import history_directory
+        target = self.base / 'cli-logs.html'
+        result = subprocess.run([sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'logs', self.before['id'], self.after['id'], '-o', str(target)], capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('error C2143', target.read_text(encoding='utf-8'))
+        for protected in (self.store.directory / 'report.html', history_directory() / 'report.html'):
+            with self.assertRaisesRegex(ValueError, 'outside managed'):
+                export_log_report(self.store, self.before, self.after, protected)
+        self.store.trash([self.after['id']])
+        with self.assertRaisesRegex(ValueError, 'Trash'):
+            export_log_report(self.store, self.before, self.after, target)

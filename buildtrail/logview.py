@@ -2,7 +2,8 @@
 import queue
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog, messagebox
+import sqlite3
 
 from .logdiff import load_log, align_logs, search_logs
 from .organization import run_name
@@ -13,6 +14,7 @@ class LogDiffWindow(tk.Toplevel):
     def __init__(self, parent, store, before, after):
         super().__init__(parent)
         self.store = store
+        self.records = (before, after)
         self.title('BuildTrail · Side-by-side build logs')
         self.geometry('1320x860')
         self.minsize(1000, 680)
@@ -30,7 +32,11 @@ class LogDiffWindow(tk.Toplevel):
         self.theme_trace = None
         frame = ttk.Frame(self, padding=14)
         frame.pack(fill='both', expand=True)
-        ttk.Label(frame, text='Build log comparison', font=('Segoe UI', 18, 'bold')).pack(anchor='w')
+        header = ttk.Frame(frame)
+        header.pack(fill='x')
+        self.export_button = ttk.Button(header, text='Export HTML…', command=self.export_html, state='disabled')
+        self.export_button.pack(side='right')
+        ttk.Label(header, text='Build log comparison', font=('Segoe UI', 18, 'bold')).pack(side='left')
         self.summary = tk.StringVar(value='Verifying saved logs and aligning lines…')
         ttk.Label(frame, textvariable=self.summary, wraplength=1260).pack(anchor='w', pady=(4, 8))
         search = ttk.Frame(frame)
@@ -153,8 +159,27 @@ class LogDiffWindow(tk.Toplevel):
         self.summary.set(f"{len(left['lines'])} before / {len(right['lines'])} after visible lines · {len(self.model['changes'])} change section(s). " + ' '.join(notices))
         self.render()
         self.ready = True
+        self.export_button.configure(state='normal')
         self.filter_issues()
         self.update_search()
+
+    def export_html(self):
+        if not self.ready:
+            return
+        path = filedialog.asksaveasfilename(parent=self, title='Export side-by-side build logs',
+            defaultextension='.html', initialfile='BuildTrail-log-comparison.html',
+            filetypes=[('HTML report', '*.html')])
+        if not path:
+            return
+        try:
+            from pathlib import Path
+            from .logreport import export_log_report
+            export_log_report(self.store, *self.records, Path(path), query=self.query.get(),
+                match_case=self.match_case.get(), issue_kind=self.issue_kind.get(),
+                issue_side=self.issue_side.get(), theme=self.theme.mode.get() if self.theme else 'dark')
+            messagebox.showinfo('Export complete', 'Saved offline side-by-side log report:\n' + path, parent=self)
+        except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
+            messagebox.showerror('Export failed', str(exc), parent=self)
 
     def render(self):
         for side, text in self.texts.items():
