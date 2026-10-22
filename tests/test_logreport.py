@@ -68,3 +68,30 @@ class LogReportTests(unittest.TestCase):
             self.assertEqual(target.read_text(), 'previous report')
         finally:
             target.unlink(missing_ok=True)
+
+    def test_context_validation_corrupt_preferences_and_report_ranges(self):
+        import json
+        from buildtrail.logsettings import read_context
+        from buildtrail.logdiff import align_logs, unchanged_sections
+        pref = self.base / 'preferences.json'
+        for raw in ('broken', '[]', 'null', '{"log_context_lines": true}', '{"log_context_lines": 101}', '{"log_context_lines": "5"}'):
+            pref.write_text(raw)
+            self.assertEqual(read_context(pref), 3)
+        pref.write_text(json.dumps({'log_context_lines': 0}))
+        for identity in self.records:
+            raw = ('\n'.join(['same'] * 20 + [identity])).encode()
+            (self.base / identity / 'build.log').write_bytes(raw)
+            self.records[identity]['evidence_hashes']['build.log'] = hashlib.sha256(raw).hexdigest()
+        report = render_log_report(self.store, *self.records.values(), collapse=True)
+        self.assertIn('(0 context lines)', report)
+        self.assertIn('data-start="1" data-end="20"', report)
+        report = render_log_report(self.store, *self.records.values(), context_lines=5)
+        self.assertIn('data-start="1" data-end="15"', report)
+        report = render_log_report(self.store, *self.records.values(), context_lines=100)
+        self.assertNotIn('class="fold-marker"', report)
+        for invalid in (-1, 101, True, 1.5, '3'):
+            with self.assertRaises(ValueError):
+                render_log_report(self.store, *self.records.values(), context_lines=invalid)
+        rows = align_logs(['a'] * 5 + ['old'], ['a'] * 5 + ['new'])['rows']
+        self.assertEqual(unchanged_sections(rows, 0), [(1, 5)])
+        self.assertEqual(unchanged_sections(rows, 100), [])

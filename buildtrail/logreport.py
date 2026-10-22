@@ -6,6 +6,7 @@ from html import escape
 from . import __version__
 from .logdiff import load_log, align_logs, unchanged_sections
 from .organization import run_name
+from .logsettings import read_context, validate_context
 from ._apptrail.core import atomic_write
 from ._apptrail.history import history_directory
 
@@ -71,7 +72,8 @@ applyFolds();search();filterIssues();
 
 def render_log_report(store, before, after, *, query='', match_case=False,
                       issue_kind='Errors & warnings', issue_side='Both logs', theme='dark',
-                      collapse=False, expanded=()):
+                      collapse=False, expanded=(), context_lines=None):
+    context_lines = read_context(store.directory / 'preferences.json') if context_lines is None else validate_context(context_lines)
     before, left = load_log(store, before)
     after, right = load_log(store, after)
     model = align_logs(left['lines'], right['lines'])
@@ -79,7 +81,7 @@ def render_log_report(store, before, after, *, query='', match_case=False,
     diagnostic = {(x['side'], x['row']): x['severity'] for x in model['diagnostics']}
     panes = []
     change_rows = set(model['changes'])
-    folds = unchanged_sections(model['rows'])
+    folds = unchanged_sections(model['rows'], context_lines)
     starts = dict(folds)
     fold_rows = {row: start for start, end in folds for row in range(start, end + 1)}
     expanded = set(expanded)
@@ -115,7 +117,7 @@ def render_log_report(store, before, after, *, query='', match_case=False,
 <h1>BuildTrail · Side-by-side build logs</h1><p>{len(left['lines'])} before / {len(right['lines'])} after visible lines · {len(model['changes'])} change section(s). {e(' '.join(notices))}</p>
 <div class="toolbar"><label for="query">Find in both logs</label><input id="query" value="{e(query)}" type="search"><label><input id="case" type="checkbox"{' checked' if match_case else ''}>Match case</label><button id="prev-match">Previous match</button><button id="next-match">Next match</button><button id="clear">Clear</button><button id="theme">Toggle theme</button></div>
 <p id="search-status" class="status" role="status"></p><div class="toolbar"><label for="severity">Severity</label><select id="severity">{options([('', 'Errors & warnings'), ('error','Errors'), ('warning','Warnings')], issue_kind)}</select><label for="side">Build</label><select id="side">{options([('', 'Both logs'), ('before','Before'), ('after','After')], issue_side)}</select><button id="prev-issue">Previous issue</button><button id="next-issue">Next issue</button><button id="prev-change">Previous change</button><button id="next-change">Next change</button></div>
-<div class="toolbar"><label><input id="collapse" type="checkbox"{' checked' if collapse else ''}>Collapse unchanged lines (3 context lines)</label><button id="expand-all">Expand all</button><button id="collapse-all">Collapse all</button></div>
+<div class="toolbar"><label><input id="collapse" type="checkbox"{' checked' if collapse else ''}>Collapse unchanged lines ({context_lines} context lines)</label><button id="expand-all">Expand all</button><button id="collapse-all">Collapse all</button></div>
 <p id="issue-status" class="status" role="status"></p><noscript>Enable JavaScript for search and navigation. Both logs remain readable below.</noscript><div class="panes">{''.join(panes)}</div>
 <footer>BuildTrail {__version__} · Original line numbers · Times UTC · Log hashes verified at export. Saved bytes unchanged; ANSI/control codes removed for display. Search includes collapsed lines; navigating to a hidden match or issue expands its section. Search and navigation cover this bounded preview only (up to 1,000,000 characters, 10,000 lines and 20,000 characters per line per log; up to 2,000 search matches). Errors/warnings are heuristic matches. Case-insensitive search uses browser Unicode lowercasing. This standalone report uses embedded JavaScript and makes no network requests. Logs and run names may contain private information; review before sharing.</footer><script>{SCRIPT}</script></body></html>'''
 

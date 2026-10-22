@@ -33,3 +33,7 @@ Reuses the verified, bounded standard-library log model. Python html.escape and 
 ## Collapsed log context (0.5.0)
 
 One standard-library unchanged_sections model defines matching ranges for Tk and HTML. Tk uses elided tags with a stable aligned-row-to-display-row map; offline HTML uses shared section IDs and DOM visibility. Search and issue navigation retain all preview rows and reveal hidden destinations. No new dependency or vendored AppTrail change.
+
+## Remembered log context (0.6.0)
+
+BuildTrail owns the validated log_context_lines preference (0–100, default 3), reusing existing standard-library preference I/O without modifying vendored AppTrail code or its context_lines setting. Tk rebuilds the shared section model and remaps navigation when context changes. HTML exports preserve the chosen count and computed ranges; CLI overrides are transient. No new dependency.

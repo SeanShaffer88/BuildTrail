@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 2026-10-22
+
+- Choose 0–100 context lines around log changes (default 3), saved between sessions in BuildTrail preferences.
+- Rebuild collapsed sections when context changes while preserving search and navigation behavior.
+- Preserve selected context and section ranges in offline HTML exports; CLI exports reuse the saved value, with a transient `--context-lines` override.
+- Validate input and malformed preferences, preserve unrelated settings, and report preference-save failures.
+
 ## 0.5.0 — 2026-10-22
 
 - Collapse unchanged log sections with three context lines beside changes in the desktop view and standalone HTML reports.

@@ -1,4 +1,4 @@
-BuildTrail 0.5.0 — Windows x64 portable edition
+BuildTrail 0.6.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -84,8 +84,15 @@ used. CLI: BuildTrail.exe --data-dir LIBRARY logs BEFORE AFTER -o logs.html
 Saved logs are verified again before export; preview limits are disclosed.
 
 COLLAPSE UNCHANGED LOG LINES
-Enable Collapse unchanged lines in the log window or HTML report. Three context
-lines remain beside changes; section markers expand/collapse both panes together.
+Enable Collapse unchanged lines in the log window or HTML report. Chosen context
+lines remain beside changes (default 3); section markers expand/collapse both panes together.
 Expand all and Collapse all are available. Search/issue navigation opens hidden
 results. Exports retain the collapse option and expanded sections. CLI supports
 logs BEFORE AFTER --collapse (add -o logs.html for direct HTML export).
+
+REMEMBER CONTEXT LINES
+Choose 0-100 Context lines in the log window. Arrows apply immediately; press
+Enter or leave the field after typing. The choice is saved between sessions in
+BuildTrail preferences and preserved in HTML exports. CLI exports also reuse it;
+--context-lines N overrides it for one view/export without saving. Changing
+context resets individually expanded sections to the new ranges.

@@ -7,6 +7,8 @@ import sqlite3
 
 from .logdiff import load_log, align_logs, search_logs, unchanged_sections
 from .organization import run_name
+from .logsettings import read_context, validate_context
+from ._apptrail.preferences import write_preference
 from ._apptrail.theme import PALETTES
 
 
@@ -24,6 +26,9 @@ class LogDiffWindow(tk.Toplevel):
         self.row_map = {}
         self.fold_markers = {}
         self.expanded = set()
+        self.preferences_path = store.directory / 'preferences.json'
+        self.context_value = read_context(self.preferences_path)
+        self.context = tk.StringVar(self, value=str(self.context_value))
         self.collapse = tk.BooleanVar(self, value=False)
         self.matches = []
         self.match_index = self.issue_index = self.change_index = -1
@@ -74,8 +79,13 @@ class LogDiffWindow(tk.Toplevel):
         ttk.Label(frame, textvariable=self.issue_status).pack(anchor='w', pady=4)
         folds = ttk.Frame(frame)
         folds.pack(fill='x', pady=4)
-        ttk.Checkbutton(folds, text='Collapse unchanged lines (3 context lines)', variable=self.collapse,
+        ttk.Checkbutton(folds, text='Collapse unchanged lines', variable=self.collapse,
                         command=self.apply_folds).pack(side='left')
+        ttk.Label(folds, text='Context lines').pack(side='left', padx=(10, 3))
+        self.context_box = ttk.Spinbox(folds, from_=0, to=100, width=4, textvariable=self.context, command=self.change_context)
+        self.context_box.pack(side='left')
+        self.context_box.bind('<Return>', lambda event: self.change_context())
+        self.context_box.bind('<FocusOut>', lambda event: self.change_context())
         ttk.Button(folds, text='Expand all', command=lambda: self.set_all_folds(True)).pack(side='left', padx=6)
         ttk.Button(folds, text='Collapse all', command=lambda: self.set_all_folds(False)).pack(side='left')
         ttk.Label(folds, text='Click a section marker to expand or collapse it.').pack(side='left', padx=8)
@@ -177,7 +187,7 @@ class LogDiffWindow(tk.Toplevel):
         self.update_search()
 
     def export_html(self):
-        if not self.ready:
+        if not self.ready or not self.change_context():
             return
         path = filedialog.asksaveasfilename(parent=self, title='Export side-by-side build logs',
             defaultextension='.html', initialfile='BuildTrail-log-comparison.html',
@@ -189,10 +199,36 @@ class LogDiffWindow(tk.Toplevel):
             from .logreport import export_log_report
             export_log_report(self.store, *self.records, Path(path), query=self.query.get(),
                 match_case=self.match_case.get(), issue_kind=self.issue_kind.get(),
-                issue_side=self.issue_side.get(), collapse=self.collapse.get(), expanded=sorted(self.expanded), theme=self.theme.mode.get() if self.theme else 'dark')
+                issue_side=self.issue_side.get(), collapse=self.collapse.get(), context_lines=self.context_value, expanded=sorted(self.expanded), theme=self.theme.mode.get() if self.theme else 'dark')
             messagebox.showinfo('Export complete', 'Saved offline side-by-side log report:\n' + path, parent=self)
         except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
             messagebox.showerror('Export failed', str(exc), parent=self)
+
+    def change_context(self):
+        try:
+            raw = self.context.get().strip()
+            if not raw.isascii() or not raw.isdecimal():
+                raise ValueError('Context lines must be a whole number from 0 to 100.')
+            value = validate_context(int(raw))
+        except ValueError as exc:
+            self.context.set(str(self.context_value))
+            messagebox.showerror('Invalid context lines', str(exc), parent=self)
+            return False
+        self.context.set(str(value))
+        if value == self.context_value:
+            return True
+        self.context_value = value
+        self.expanded.clear()
+        self.change_index = -1
+        if self.ready:
+            self.render()
+            self.filter_issues()
+            self.update_search()
+        try:
+            write_preference(self.preferences_path, 'log_context_lines', value)
+        except OSError:
+            messagebox.showwarning('Context preference', 'Context changed for this session, but the preference could not be saved.', parent=self)
+        return True
 
     def set_all_folds(self, expanded):
         self.collapse.set(True)
@@ -222,7 +258,9 @@ class LogDiffWindow(tk.Toplevel):
                 text.configure(state='disabled')
 
     def render(self):
-        self.folds = unchanged_sections(self.model['rows'])
+        self.folds = unchanged_sections(self.model['rows'], self.context_value)
+        self.row_map.clear()
+        self.fold_markers.clear()
         starts = {start: end for start, end in self.folds}
         display = 1
         lines_by_side = {'before': [], 'after': []}
@@ -239,6 +277,10 @@ class LogDiffWindow(tk.Toplevel):
             display += 1
         for side, text in self.texts.items():
             text.configure(state='normal')
+            text.delete('1.0', 'end')
+            for tag in text.tag_names():
+                if tag.startswith(('fold_', 'marker_')):
+                    text.tag_delete(tag)
             text.insert('1.0', ''.join(lines_by_side[side]))
             for index, row in enumerate(self.model['rows'], 1):
                 display_row = self.row_map[index]

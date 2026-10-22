@@ -40,6 +40,8 @@ def main():
         export_log_report(store, good, bad, target.with_suffix('.folded.html'), collapse=True)
         export_log_report(store, good, bad, target.with_suffix('.expanded.html'), collapse=True,
                           expanded=[start for start, _ in folds])
+        export_log_report(store, good, bad, target.with_suffix('.context.html'), collapse=True, context_lines=0)
+        export_log_report(store, good, bad, target.with_suffix('.wide-context.html'), collapse=True, context_lines=100)
         report = render_report(store, store.load(good['id']), store.load(bad['id']))
         # Public demo only: normalize temporary project/interpreter paths.
         from html import escape

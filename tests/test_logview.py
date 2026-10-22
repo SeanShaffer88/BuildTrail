@@ -277,3 +277,63 @@ class LogViewTests(unittest.TestCase):
         with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showinfo'):
             window.export_html()
         self.assertIn('id="collapse" type="checkbox" checked', target.read_text(encoding='utf-8'))
+
+    def test_context_persists_rebuilds_and_preserves_other_preferences(self):
+        import json
+        pref = self.store.directory / 'preferences.json'
+        pref.write_text(json.dumps({'theme': 'light', 'context_lines': 42, 'unrelated': True}))
+        window = self.open()
+        window.set_all_folds(False)
+        old_folds = list(window.folds)
+        window.context.set('8')
+        self.assertTrue(window.change_context())
+        self.assertNotEqual(window.folds, old_folds)
+        saved = json.loads(pref.read_text())
+        self.assertEqual(saved, {'theme': 'light', 'context_lines': 42, 'unrelated': True, 'log_context_lines': 8})
+        window.query.set('context line 100'); window.update_search(); window.jump_match(1)
+        match = window.matches[window.match_index]
+        self.assertEqual(window.texts[match['side']].get(*window.match_range(match)), 'context line 100')
+        # A new comparison reconstructs the preference from disk.
+        other = self.open()
+        self.assertEqual(other.context_value, 8)
+        self.assertEqual(other.context.get(), '8')
+        self.assertEqual(other.folds, window.folds)
+        other.context.set('0'); self.assertTrue(other.change_context())
+        self.assertEqual(other.context_value, 0)
+        other.context.set('100'); self.assertTrue(other.change_context())
+        self.assertEqual(other.context_value, 100)
+
+    def test_context_invalid_input_and_save_failure(self):
+        window = self.open()
+        for value in ('-1', '101', '1.5', '', 'bad'):
+            window.context.set(value)
+            with patch('buildtrail.logview.messagebox.showerror') as error:
+                self.assertFalse(window.change_context())
+            error.assert_called_once()
+            self.assertEqual(window.context_value, 3)
+            self.assertEqual(window.context.get(), '3')
+        window.context.set('9')
+        with patch('buildtrail.logview.write_preference', side_effect=OSError('disk full')), patch('buildtrail.logview.messagebox.showwarning') as warning:
+            self.assertTrue(window.change_context())
+        warning.assert_called_once()
+        self.assertEqual(window.context_value, 9)
+
+    def test_context_export_and_cli_saved_preference_override(self):
+        import subprocess
+        window = self.open()
+        window.context.set('0')
+        window.set_all_folds(False)
+        target = self.base / 'context.html'
+        with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showinfo'):
+            window.export_html()
+        self.assertEqual(window.context_value, 0)  # Export commits a typed value.
+        self.assertIn('Collapse unchanged lines (0 context lines)', target.read_text(encoding='utf-8'))
+        args = [sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'logs', self.before['id'], self.after['id'], '--collapse', '-o', str(target)]
+        result = subprocess.run(args, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('(0 context lines)', target.read_text(encoding='utf-8'))
+        result = subprocess.run(args + ['--context-lines', '7'], capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('(7 context lines)', target.read_text(encoding='utf-8'))
+        from buildtrail.logsettings import read_context
+        self.assertEqual(read_context(window.preferences_path), 0)  # CLI override is transient.
