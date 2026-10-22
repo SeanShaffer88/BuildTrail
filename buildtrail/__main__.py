@@ -30,6 +30,9 @@ def main():
     report.add_argument('before')
     report.add_argument('after', nargs='?')
     report.add_argument('-o', '--output', type=Path, required=True)
+    logs = sub.add_parser('logs', help='Open two saved logs in the side-by-side review window')
+    logs.add_argument('before')
+    logs.add_argument('after')
     args = parser.parse_args()
     try:
         if args.command in (None, 'gui'):
@@ -44,6 +47,21 @@ def main():
                 gui()
             return 0
         store = BuildStore(args.data_dir)
+        if args.command == 'logs':
+            before, after = store.load(args.before), store.load(args.after)
+            import tkinter as tk
+            from .logview import LogDiffWindow
+            from ._apptrail.theme import Theme
+            root = tk.Tk()
+            root.withdraw()
+            Theme(root, store.directory / 'preferences.json')
+            window = LogDiffWindow(root, store, before, after)
+            def close():
+                window.close()
+                root.destroy()
+            window.protocol('WM_DELETE_WINDOW', close)
+            root.mainloop()
+            return 0
         if args.command == 'run':
             recipe = validate_recipe(json.loads(args.recipe.read_text(encoding='utf-8')))
             record = run_build(recipe, store, output=lambda text: print(text, end='', flush=True))

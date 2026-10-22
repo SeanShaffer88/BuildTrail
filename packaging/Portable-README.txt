@@ -1,4 +1,4 @@
-BuildTrail 0.2.0 — Windows x64 portable edition
+BuildTrail 0.3.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -56,3 +56,22 @@ Organize build runs:
 - Close versions older than 0.2.0 before organizing; they do not support run locks
   or Trash. Active captures in 0.2.0+ are protected across windows.
 - organization.sqlite3 contains names/notes/Trash state; include it in backups.
+
+Side-by-side build logs:
+- Select two history rows and click Compare logs (2), or use Side-by-side logs
+  from Review & logs after comparing two runs. Older capture is Before.
+- Original line numbers, red/green change rows, synchronized vertical scrolling,
+  independent horizontal scrolling, and previous/next change controls are included.
+- Search both visible logs with literal Unicode-aware case-folded matching.
+  Ctrl+F focuses search; F3 / Shift+F3 jumps next/previous, wrapping at the ends.
+- Previous/next issue navigates heuristic errors/warnings. Filter by severity and
+  Before/After/Both logs. Ctrl+Down / Ctrl+Up also jumps between issues.
+- Logs are verified against saved hashes before display. Nothing is executed or
+  rewritten. Trash runs must be restored first; missing/unverified logs fail clearly.
+- Preview: first 1,000,000 decoded characters and 10,000 lines per log; long lines
+  show up to 20,000 characters. Search highlights up to 2,000 visible matches.
+  Limits and capture truncation are shown in the window. Raw captured bytes remain.
+- Terminal escape/control codes are removed for display, with line endings
+  normalized. Large edited middles may align by position, explicitly noted.
+- Error/warning matches are heuristics for common compiler/log formats, not a
+  complete parser or a substitute for the captured exit code.

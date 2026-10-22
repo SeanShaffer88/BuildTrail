@@ -17,3 +17,11 @@ storage alongside immutable run evidence, following AppTrail's established local
 catalog approach. Run locks use Windows byte-range locking (msvcrt) or flock on
 POSIX. Targeted tests cover cross-process exclusion, deletion rollback/recovery,
 and Windows junction refusal. No new runtime package or resource was adopted.
+
+
+0.3.0 adds a standard-library log diff model and Tk window. AppTrail's vendored
+source-diff policy remains unchanged: build logs have separate preview bounds.
+Bounded difflib alignment, literal str.find-based Unicode search, and conservative
+compiler/log diagnostic heuristics need no runtime package or network service.
+Tests cover long repetitive inputs, Unicode offsets, evidence hashes, navigation,
+scroll synchronization, and window/theme callback cleanup.

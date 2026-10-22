@@ -13,6 +13,7 @@ from .core import (BuildStore, default_recipe, validate_recipe, run_build, sourc
                    table_changes)
 from .report import render_report, export_report
 from .organization import run_name
+from .logview import LogDiffWindow
 from ._apptrail.core import atomic_write
 from ._apptrail.history import SnapshotHistory
 from ._apptrail.checkpoints import capture_checkpoint
@@ -149,6 +150,7 @@ class BuildTrail:
         bar = ttk.Frame(frame)
         bar.pack(fill='x', pady=12)
         for title, command in [('View run', self.view_selected), ('Compare selected (2)', self.compare_selected),
+                               ('Compare logs (2)', self.compare_selected_logs),
                                ('Refresh history', self.refresh_history), ('Load run recipe', self.recipe_from_run)]:
             ttk.Button(bar, text=title, command=command).pack(side='left', padx=(0, 8))
 
@@ -166,6 +168,7 @@ class BuildTrail:
         ttk.Button(bar, text='Open full HTML review', command=self.open_review).pack(side='left')
         ttk.Button(bar, text='Export HTML…', command=self.export).pack(side='left', padx=8)
         ttk.Button(bar, text='Open AppTrail source comparison', command=self.open_source).pack(side='left')
+        ttk.Button(bar, text='Side-by-side logs…', command=self.open_log_diff).pack(side='left', padx=8)
         self.review = tk.Text(self.review_tab, wrap='none', font=('Consolas', 10), state='disabled')
         scroll = ttk.Scrollbar(self.review_tab, orient='vertical', command=self.review.yview)
         scroll.pack(side='right', fill='y')
@@ -421,6 +424,20 @@ class BuildTrail:
     def compare_selected(self):
         if runs := self.selected(2):
             self.show_runs(sorted(runs, key=lambda r: (r.get('started_ns', 0), r['id'])))
+
+    def compare_selected_logs(self):
+        if runs := self.selected(2):
+            runs = sorted(runs, key=lambda r: (r.get('started_ns', 0), r['id']))
+            return LogDiffWindow(self.root, self.store, *runs)
+
+    def open_log_diff(self):
+        try:
+            before, after = self.chosen_report()
+            if after is None:
+                raise ValueError('Compare two build runs first, or select two history rows and click Compare logs (2).')
+            return LogDiffWindow(self.root, self.store, before, after)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror('Build log comparison', str(exc), parent=self.root)
 
     def recipe_from_run(self):
         if runs := self.selected(1):

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-10-21
+
+- Side-by-side saved build logs with original line numbers, aligned change rows, synchronized scrolling, and previous/next change navigation.
+- Literal Unicode-aware search across both visible logs, case matching, highlights, wraparound navigation, and Ctrl+F/F3 shortcuts.
+- Heuristic error/warning highlighting and navigation with severity and Before/After/Both filters.
+- Background evidence verification/alignment, explicit preview limits and positional fallback, and unchanged raw log evidence.
+
 ## 0.2.0 — 2026-10-21
 
 - Rename saved build runs and add multiline notes without rewriting original commands, recipes, logs, source snapshots, or hashes.
