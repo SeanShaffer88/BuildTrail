@@ -146,7 +146,7 @@ def execute(argv, cwd, log_path, timeout, cancelled=lambda: False, output=lambda
                 if cancelled() and state == 'completed':
                     state = 'cancelled'
                     tree.close()
-                elif time.monotonic() - start >= timeout and state == 'completed':
+                elif time.monotonic() - start >= timeout and state == 'completed' and tree.process.poll() is None:
                     state = 'timed_out'
                     tree.close()
                 if tree.process.poll() is not None:

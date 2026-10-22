@@ -199,6 +199,12 @@ class ProcessTests(unittest.TestCase):
         self.assertTrue(result['log_truncated'])
         self.assertEqual((self.root / 'build.log').stat().st_size, 1024)
 
+    def test_slow_log_consumer_does_not_timeout_an_already_exited_command(self):
+        result = execute([sys.executable, '-c', "print('x'*100000)"], self.root,
+            self.root / 'build.log', .5, output=lambda text: time.sleep(.05))
+        self.assertEqual(result['state'], 'completed')
+        self.assertEqual(result['exit_code'], 0)
+
     def test_timeout_kills_owned_child_processes(self):
         child = "import time; from pathlib import Path; time.sleep(1.2); Path('escaped').write_text('bad')"
         parent = f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{child!r}]); print('spawned',flush=True); time.sleep(30)"
