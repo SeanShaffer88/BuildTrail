@@ -37,7 +37,7 @@ def main():
         report = report.replace(escape(str(base).replace('\\', '\\\\'), quote=True), 'C:/BuildTrail-Demo')
         report = report.replace(escape(sys.executable, quote=True), 'python.exe')
         report = report.replace(escape(sys.executable.replace('\\', '\\\\'), quote=True), 'python.exe')
-        target.write_text(report, encoding='utf-8')
+        target.write_text(report.replace('\r\n', '\n').replace('\r', '\n'), encoding='utf-8', newline='\n')
 
 
 if __name__ == '__main__':
