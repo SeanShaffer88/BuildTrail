@@ -6,6 +6,12 @@
 
 ## See it in action
 
+Configure a reusable build recipe with its command, output patterns, compiler/tool probes, source exclusions, and optional AppTrail baseline. This is the default recipe editor before a project folder is selected.
+
+![BuildTrail 0.1.0 build recipe editor in the Terminal dark theme, showing the default CMake build command, output patterns, compiler probes, exclusions, and AppTrail baseline selector](docs/screenshots/build-recipe.png)
+
+The recipe screenshot is an unedited Windows capture supplied by Sean.
+
 Open an AppTrail checkpoint comparison from BuildTrail to see the named baseline alongside the source captured before a failed build. The report includes Git details, file exclusions, and saved source diffs—in this example, a C# change introduces an undefined formatter.
 
 ![AppTrail checkpoint comparison from BuildTrail, showing the Before weather labels baseline, Git commit details, exclusions, and the C# change that caused a demo build to fail](docs/screenshots/checkpoint-comparison.png)
