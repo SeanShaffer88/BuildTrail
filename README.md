@@ -1,0 +1,84 @@
+# BuildTrail
+
+**Explain what changed between a working build and a failed one.** Save build commands, compiler/tool versions, dependency manifests, logs, output hashes, and AppTrail source checkpoints in one local history.
+
+[Download for Windows x64](https://github.com/SeanShaffer88/BuildTrail/releases/latest) · [AppTrail](https://github.com/SeanShaffer88/AppTrail) · [Example comparison report](examples/BuildTrail-comparison.html) · [MIT license](LICENSE)
+
+## Run on Windows
+
+Download **BuildTrail-0.1.0-Windows-x64.zip**, extract it, and double-click **BuildTrail.exe**. BuildTrail needs no Python installation, command window, administrator access, or account. Your compiler and build tools must already be installed. The unsigned x64 executable is validated on Windows 11 x64; other Windows versions and ARM64 have not been validated. License notices ship with the portable package.
+
+## Capture a build
+
+1. Choose your project folder and name the recipe, for example `Release x64`.
+2. Enter the build command. Default execution is Windows PowerShell without a profile. Example: `cmake --build build --config Release`.
+3. Declare **output patterns**, such as `build/**/*.exe`, `dist/**/*`, or `bin/Release/*.dll`. Paths stay relative to the project. `**/` includes zero or more directories. Matching is case-insensitive; `*` can span `/`.
+4. Set **source/dependency exclusions**, one pattern per line. Defaults skip `.git`, virtual environments, `node_modules`, build outputs, `obj`, and `bin`. Names match at any depth; paths containing `/` start at the project root. These are AppTrail patterns, not `.gitignore` syntax. Symlinks and Windows reparse points are skipped.
+5. Add compiler/tool probes as one JSON argument array per line: `["cl"]`, `["cmake", "--version"]`, `["dotnet", "--info"]`, or `["python", "-m", "pip", "freeze"]`. Missing tools are recorded without preventing the build.
+6. Optionally choose an **AppTrail baseline**, or click **Save checkpoint…** to create one from the current recipe exclusions. Linked baselines reuse their saved exclusions and source-text setting.
+7. Click **Save recipe**, then **Run build & capture evidence**. Loading a recipe does not execute it.
+
+Each run records the recipe, command, timestamps, exit code, duration, OS/architecture, probe output and resolved executable paths, dependency manifests before/after the command, merged stdout/stderr, output hashes before/after the command, and the source snapshot captured before execution. An exit code of zero is recorded as success; correctness and output freshness remain separate evidence.
+
+PowerShell runs with inherited environment variables and no interactive stdin. BuildTrail does not collect environment variable values, install dependencies, change Git commits, or fetch remotes itself. The command you enter can perform those operations. For native toolchains, launch from a configured environment or call a setup wrapper. Probes run **before** the build command; environment changes inside the build script do not affect earlier probes. For multiple native commands, explicitly check each exit code or use a build wrapper that does; the default PowerShell wrapper returns the last native command's exit code. Terminating PowerShell errors and ordinary nonterminating PowerShell errors fail the run.
+
+## Compare successful and failed builds
+
+Select two runs in **Build history** and click **Compare selected (2)**. Runs are ordered by capture time. **Review & logs** provides a quick summary; **Open full HTML review** shows:
+
+- Before/after commands, results, timing, machine information, and warnings.
+- Compiler/tool output differences, excluding irrelevant probe timing.
+- Dependency-manifest hashes and bounded text diffs between build inputs; changes made by the command are also listed per run.
+- Output hashes between builds and within each run. An unchanged EXE left by a failed command is labeled **Unchanged**, not newly produced.
+- Saved source changes between runs and from each linked AppTrail baseline, with Git details, exclusions, capture issues, and saved text diffs.
+- Captured logs and a bounded unified log comparison.
+
+**Open AppTrail source comparison** opens the existing AppTrail report format using saved evidence. You can export a self-contained build HTML report with no scripts or network requests. Reports use the Terminal dark palette and print styling.
+
+## AppTrail integration and storage
+
+AppTrail does not need to be installed: BuildTrail vendors the compatible MIT-licensed snapshot/history modules from AppTrail 0.16.0. Both apps use `%LOCALAPPDATA%\AppTrail\history`. Every build's pre-command source snapshot appears in AppTrail history. BuildTrail also saves independent `source.json` and optional `baseline.json` copies with the run, so deleting an AppTrail history entry does not destroy that run's evidence. Build captures do not replace your marked AppTrail baseline; **Save checkpoint…** explicitly marks the new baseline. AppTrail source comparison uses the existing saved-text limits and credential-filename exclusions.
+
+Recipes and run evidence live in `%LOCALAPPDATA%\BuildTrail`. Each `runs/<id>/` contains `run.json`, `build.log`, tool logs, and source/baseline JSON where available. Evidence file digests detect accidental external changes; records are local files, not signed attestations. Back up both libraries while the apps are idle. Moving or replacing the executable preserves per-user history. An interrupted application can leave an **unfinished** run; it is not counted as success. This first release has no automatic history deletion.
+
+Stop/timeout closes the owned Windows Job Object, terminating its process tree; descendants are also stopped after the root command exits. Tools that require persistent background build servers or detached processes should use an in-process/no-daemon mode. Interactive prompts are unsupported. The configured timeout applies to the build command; source/hash capture and bounded tool probes add time. Cancelling capture can leave output/dependency evidence incomplete; unobserved files are not confirmed removals.
+
+## Evidence limits
+
+- Dependency evidence covers recognized Python, npm/pnpm/yarn, Cargo, Go, .NET/NuGet, vcpkg, Conan, CMake, and Meson manifests/lockfiles outside source exclusions. It is **not** a full installed/transitive dependency graph. Use explicit package-inventory probes when needed. Nothing is automatically resolved or downloaded.
+- Dependency text: UTF-8, at most 256 KiB per file and 2 MiB per observation. Large lockfiles still retain hashes. Source text follows AppTrail's 256 KiB/3,000-line per-file and 8 MiB total budget, with credential filenames excluded.
+- Merged build log: at most 10 MiB, with excess output drained and truncation recorded. Tool probes: 10 seconds and 64 KiB each. Raw captured log bytes are stored; display uses UTF-8 replacement decoding. Live log preview retains at most 200,000 characters and may omit rapid output; saved captured logs are authoritative.
+- HTML previews: 200,000 characters per log, at most 300 log-diff lines, 512 KiB of source-diff text per source comparison, and 256 KiB of dependency-diff text. Limits are described in the report.
+- Snapshots and hashes are sequential observations, not atomic backups. Source is captured before the command; generated source after execution is not a second source snapshot. Stable hashes identify bytes, not provenance or reproducibility. Unreadable/unstable evidence is marked or the capture stops with a recorded error.
+- Commands, logs, manifests, and saved source may contain secrets or private paths. Review exports before sharing.
+
+## Run from source or CLI
+
+Python 3.11+ with Tk; standard library only. No pip runtime dependencies.
+
+```powershell
+python -m buildtrail
+python -m buildtrail run examples/recipe.json
+python -m buildtrail list
+python -m buildtrail report BEFORE_ID AFTER_ID -o comparison.html
+python -m buildtrail report RUN_ID -o build.html
+python -m buildtrail --data-dir C:/BuildEvidence list
+```
+
+Edit the example recipe's project path and build command before running. CLI recipes can use `"shell": "argv"` with `"argv": ["executable", "argument"]` for direct execution without PowerShell. CLI report order follows the IDs supplied. The windowed executable also accepts these command arguments for scripted runs; it saves evidence and returns an exit status without opening a command window or printing console output.
+
+## Build and validate
+
+```powershell
+python -m unittest discover -s tests -v
+python tests/make_report_fixture.py work/report.html
+# Optional browser regression: install playwright 1.62.1 in a test-only directory.
+# Set BUILDTRAIL_PLAYWRIGHT to its module path, then:
+node tests/report_browser.cjs work/report.html
+python -m pip install -r packaging/requirements-build.txt
+python packaging/build_windows.py --work-dir work/package --output-dir dist/BuildTrail-Windows-x64
+```
+
+Tests cover successful/failed commands, stale output detection, linked checkpoints, independent evidence copies, exclusions, dependency changes, PowerShell exit handling, Unicode/spaced paths, cancellation, descendant cleanup, log limits, reports, the CLI, and real Tk workflows. A real MSVC consumer test runs when C++ Build Tools are available. CI tests Python 3.11/3.15 on Windows, checks the report in Edge, and builds the portable app. Automatic CI runs do not upload temporary build artifacts; manual builds retain artifacts for one day. Published downloads remain separate.
+
+See [resource choices](docs/RESOURCE-CHOICES.md), [third-party provenance](THIRD-PARTY-NOTICES.md), and [changelog](CHANGELOG.md).

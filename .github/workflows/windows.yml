@@ -1,0 +1,57 @@
+name: Windows tests and portable build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.15']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - run: python -m unittest discover -s tests -v
+      - if: matrix.python == '3.15'
+        run: npm install --prefix work/browser-tools --no-save --ignore-scripts playwright@1.62.1
+      - if: matrix.python == '3.15'
+        run: python tests/make_report_fixture.py work/report.html
+      - if: matrix.python == '3.15'
+        run: node tests/report_browser.cjs work/report.html
+        env:
+          BUILDTRAIL_PLAYWRIGHT: ${{ github.workspace }}/work/browser-tools/node_modules/playwright
+
+  package:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.15'
+          architecture: x64
+      - run: python -m pip install -r packaging/requirements-build.txt
+      - run: python packaging/build_windows.py --work-dir work/package --output-dir dist/BuildTrail-Windows-x64
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: BuildTrail-Windows-x64
+          retention-days: 1
+          path: |
+            dist/BuildTrail-*-Windows-x64.zip
+            dist/BuildTrail-Windows-x64/SHA256SUMS.txt
+          if-no-files-found: error

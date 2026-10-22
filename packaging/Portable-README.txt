@@ -1,0 +1,45 @@
+BuildTrail 0.1.0 — Windows x64 portable edition
+
+Source and updates: https://github.com/SeanShaffer88/BuildTrail
+MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
+
+Extract the ZIP and double-click BuildTrail.exe. No Python installation,
+command window, administrator access, or account is required for BuildTrail.
+Your actual compiler/build tools must already be installed.
+
+1. Choose the project folder and enter a named build recipe.
+2. Enter a PowerShell build command, output globs, exclusions, and tool probes.
+3. Optionally link an AppTrail checkpoint or click Save checkpoint.
+4. Save the recipe, then click Run build & capture evidence.
+5. In Build history, select two runs and click Compare selected (2).
+6. Open the full HTML review or export it for sharing.
+
+AppTrail source checkpoints are stored in the same per-user history used by
+AppTrail. BuildTrail also keeps source/baseline copies with each run.
+Builds and saved recipes: %LOCALAPPDATA%\BuildTrail
+AppTrail history: %LOCALAPPDATA%\AppTrail\history
+
+PowerShell runs without a profile and inherits BuildTrail's environment.
+Tool probes execute BEFORE the build script, so set up the compiler environment
+before launching BuildTrail, or put equivalent setup in each probe wrapper.
+For multiple native commands, check each exit code explicitly; the default
+wrapper returns the last native command's exit code. Nonterminating PowerShell
+errors are treated as failures. Interactive stdin is disabled.
+
+Compiler/dependency probes are explicit executable/argument arrays, one JSON
+array per line. Example: ["cmake", "--version"] or ["cl"]. You can capture
+installed package evidence with a probe such as ["python", "-m", "pip", "freeze"].
+BuildTrail does not install or restore dependencies automatically.
+
+Failed builds still retain logs and post-build output hashes. Unchanged outputs
+were already on disk and are not proof of a successful rebuild. Cancellation
+and timeouts stop the owned process tree. Output capture may be incomplete if
+cancelled; missing evidence is not reported as a confirmed removal.
+Logs are merged stdout/stderr, limited to 10 MiB; raw captured bytes are retained.
+Tool probes are limited to 10 seconds and 64 KiB each.
+Dependency evidence covers recognized manifests and lockfiles, not a complete
+transitive or installed-package inventory. UTF-8 text capture is bounded.
+Snapshots are sequential observations, not atomic backups or signed attestations.
+Commands, logs, dependency files, and source snapshots can contain private data.
+Review reports before sharing. Environment variable values are not inventoried.
+The Windows executable is unsigned. Windows 11 x64 is the validated platform.

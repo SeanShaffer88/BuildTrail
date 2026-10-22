@@ -1,0 +1,36 @@
+{
+  "name": "Release x64",
+  "project": "C:/Projects/MyApp",
+  "shell": "powershell",
+  "command": "cmake --build build --config Release",
+  "timeout_seconds": 1800,
+  "output_patterns": [
+    "build/**/*.exe",
+    "build/**/*.dll"
+  ],
+  "exclusions": [
+    ".git/",
+    ".venv/",
+    "__pycache__/",
+    "node_modules/",
+    "build/",
+    "dist/",
+    "obj/",
+    "bin/"
+  ],
+  "capture_text": true,
+  "checkpoint_id": "",
+  "tools": [
+    [
+      "cmake",
+      "--version"
+    ],
+    [
+      "cl"
+    ],
+    [
+      "ninja",
+      "--version"
+    ]
+  ]
+}
