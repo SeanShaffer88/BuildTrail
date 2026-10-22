@@ -1,4 +1,4 @@
-BuildTrail 0.6.0 — Windows x64 portable edition
+BuildTrail 0.7.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -96,3 +96,12 @@ Enter or leave the field after typing. The choice is saved between sessions in
 BuildTrail preferences and preserved in HTML exports. CLI exports also reuse it;
 --context-lines N overrides it for one view/export without saving. Changing
 context resets individually expanded sections to the new ranges.
+
+OTHER REMEMBERED LOG OPTIONS
+Collapse mode, Match case, severity and Before/After/Both filters save immediately
+when changed and restore in new log windows/sessions. HTML export preserves the
+open window settings; direct CLI exports reuse saved options. CLI overrides:
+--collapse / --no-collapse, --match-case / --no-match-case,
+--severity all|errors|warnings, --build both|before|after. Overrides are transient.
+Search text and individual expanded sections are per comparison, not saved as
+preferences. Standalone reports do not modify app preferences.

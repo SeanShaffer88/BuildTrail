@@ -42,6 +42,9 @@ def main():
                           expanded=[start for start, _ in folds])
         export_log_report(store, good, bad, target.with_suffix('.context.html'), collapse=True, context_lines=0)
         export_log_report(store, good, bad, target.with_suffix('.wide-context.html'), collapse=True, context_lines=100)
+        from buildtrail.logsettings import save_options
+        save_options(store.directory / 'preferences.json', collapse=True, match_case=True, issue_kind='Warnings', issue_side='Before')
+        export_log_report(store, good, bad, target.with_suffix('.saved.html'))
         report = render_report(store, store.load(good['id']), store.load(bad['id']))
         # Public demo only: normalize temporary project/interpreter paths.
         from html import escape

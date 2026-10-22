@@ -37,3 +37,7 @@ One standard-library unchanged_sections model defines matching ranges for Tk and
 ## Remembered log context (0.6.0)
 
 BuildTrail owns the validated log_context_lines preference (0–100, default 3), reusing existing standard-library preference I/O without modifying vendored AppTrail code or its context_lines setting. Tk rebuilds the shared section model and remaps navigation when context changes. HTML exports preserve the chosen count and computed ranges; CLI overrides are transient. No new dependency.
+
+## Remembered log diff options (0.7.0)
+
+Typed validation and existing standard-library preference I/O store a BuildTrail-owned log_diff_options object. Each user action merges only the changed control to preserve other windows' updates and unrelated settings. Restore and rendering do not write preferences; CLI overrides stay transient. HTML uses explicit window settings or validated saved defaults. No dependency or vendored AppTrail change.

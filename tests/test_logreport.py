@@ -95,3 +95,23 @@ class LogReportTests(unittest.TestCase):
         rows = align_logs(['a'] * 5 + ['old'], ['a'] * 5 + ['new'])['rows']
         self.assertEqual(unchanged_sections(rows, 0), [(1, 5)])
         self.assertEqual(unchanged_sections(rows, 100), [])
+
+    def test_log_preference_validation_and_independent_defaults(self):
+        import json
+        from buildtrail.logsettings import read_options, save_options, LOG_DEFAULTS
+        path = self.base / 'preferences.json'
+        for value in (None, [], True, 'bad'):
+            path.write_text(json.dumps({'log_diff_options': value}))
+            self.assertEqual(read_options(path), LOG_DEFAULTS)
+        path.write_text(json.dumps({'theme': 'light', 'log_context_lines': 9, 'log_diff_options': {'collapse': 'false', 'match_case': True, 'issue_kind': ['Errors'], 'issue_side': 'After'}}))
+        self.assertEqual(read_options(path), {'collapse': False, 'match_case': True, 'issue_kind': 'Errors & warnings', 'issue_side': 'After'})
+        save_options(path, collapse=True)
+        saved = json.loads(path.read_text())
+        self.assertEqual(saved['theme'], 'light'); self.assertEqual(saved['log_context_lines'], 9)
+        for kwargs in ({'collapse': 1}, {'match_case': 'true'}, {'issue_kind': 'bad'}, {'issue_side': False}):
+            with self.assertRaises(ValueError):
+                save_options(path, **kwargs)
+        report = render_log_report(self.store, *self.records.values())
+        self.assertIn('id="collapse" type="checkbox" checked', report)
+        self.assertIn('id="case" type="checkbox" checked', report)
+        self.assertIn('value="after" selected', report)

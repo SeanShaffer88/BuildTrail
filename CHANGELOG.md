@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 — 2026-10-22
+
+- Remember collapse mode, match case, severity and build filters between log comparisons and sessions.
+- Preserve current window options in HTML exports; direct CLI exports reuse saved settings with transient per-option overrides.
+- Validate stored fields independently, preserve unrelated preferences and merge changes from multiple open windows.
+- Explain save failures while keeping session settings usable; keep search text and per-section expansion out of saved preferences.
+
 ## 0.6.0 — 2026-10-22
 
 - Choose 0–100 context lines around log changes (default 3), saved between sessions in BuildTrail preferences.

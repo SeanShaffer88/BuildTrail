@@ -7,13 +7,13 @@ import sqlite3
 
 from .logdiff import load_log, align_logs, search_logs, unchanged_sections
 from .organization import run_name
-from .logsettings import read_context, validate_context
+from .logsettings import read_context, validate_context, resolve_options, save_options
 from ._apptrail.preferences import write_preference
 from ._apptrail.theme import PALETTES
 
 
 class LogDiffWindow(tk.Toplevel):
-    def __init__(self, parent, store, before, after):
+    def __init__(self, parent, store, before, after, **overrides):
         super().__init__(parent)
         self.store = store
         self.records = (before, after)
@@ -27,9 +27,10 @@ class LogDiffWindow(tk.Toplevel):
         self.fold_markers = {}
         self.expanded = set()
         self.preferences_path = store.directory / 'preferences.json'
+        options = resolve_options(self.preferences_path, **overrides)
         self.context_value = read_context(self.preferences_path)
         self.context = tk.StringVar(self, value=str(self.context_value))
-        self.collapse = tk.BooleanVar(self, value=False)
+        self.collapse = tk.BooleanVar(self, value=options['collapse'])
         self.matches = []
         self.match_index = self.issue_index = self.change_index = -1
         self.ready = False
@@ -55,8 +56,8 @@ class LogDiffWindow(tk.Toplevel):
         self.query = tk.StringVar()
         self.search_entry = ttk.Entry(search, textvariable=self.query, width=38)
         self.search_entry.pack(side='left', padx=8)
-        self.match_case = tk.BooleanVar(value=False)
-        ttk.Checkbutton(search, text='Match case', variable=self.match_case, command=self.schedule_search).pack(side='left')
+        self.match_case = tk.BooleanVar(self, value=options['match_case'])
+        ttk.Checkbutton(search, text='Match case', variable=self.match_case, command=self.change_match_case).pack(side='left')
         ttk.Button(search, text='Previous match', command=lambda: self.jump_match(-1)).pack(side='left', padx=4)
         ttk.Button(search, text='Next match', command=lambda: self.jump_match(1)).pack(side='left')
         ttk.Button(search, text='Clear', command=lambda: self.query.set('')).pack(side='left', padx=4)
@@ -64,12 +65,14 @@ class LogDiffWindow(tk.Toplevel):
         ttk.Label(frame, textvariable=self.search_status).pack(anchor='w', pady=4)
         issues = ttk.Frame(frame)
         issues.pack(fill='x', pady=4)
-        self.issue_kind = tk.StringVar(value='Errors & warnings')
-        self.issue_side = tk.StringVar(value='Both logs')
+        self.issue_kind = tk.StringVar(self, value=options['issue_kind'])
+        self.issue_side = tk.StringVar(self, value=options['issue_side'])
+        self.filter_boxes = {}
         for variable, values, width in ((self.issue_kind, ('Errors & warnings', 'Errors', 'Warnings'), 18),
                                          (self.issue_side, ('Both logs', 'Before', 'After'), 12)):
             box = ttk.Combobox(issues, textvariable=variable, values=values, state='readonly', width=width)
             box.pack(side='left', padx=(0, 6))
+            self.filter_boxes[str(variable)] = box
             box.bind('<<ComboboxSelected>>', self.filter_issues)
         ttk.Button(issues, text='Previous issue', command=lambda: self.jump_issue(-1)).pack(side='left')
         ttk.Button(issues, text='Next issue', command=lambda: self.jump_issue(1)).pack(side='left', padx=6)
@@ -80,7 +83,7 @@ class LogDiffWindow(tk.Toplevel):
         folds = ttk.Frame(frame)
         folds.pack(fill='x', pady=4)
         ttk.Checkbutton(folds, text='Collapse unchanged lines', variable=self.collapse,
-                        command=self.apply_folds).pack(side='left')
+                        command=self.change_collapse).pack(side='left')
         ttk.Label(folds, text='Context lines').pack(side='left', padx=(10, 3))
         self.context_box = ttk.Spinbox(folds, from_=0, to=100, width=4, textvariable=self.context, command=self.change_context)
         self.context_box.pack(side='left')
@@ -230,10 +233,24 @@ class LogDiffWindow(tk.Toplevel):
             messagebox.showwarning('Context preference', 'Context changed for this session, but the preference could not be saved.', parent=self)
         return True
 
+    def save_log_options(self, **changes):
+        try:
+            save_options(self.preferences_path, **changes)
+        except OSError:
+            messagebox.showwarning('Log diff preferences', 'Settings changed for this session, but the preferences could not be saved.', parent=self)
+
+    def change_collapse(self):
+        self.apply_folds()
+        self.save_log_options(collapse=self.collapse.get())
+
+    def change_match_case(self):
+        self.schedule_search()
+        self.save_log_options(match_case=self.match_case.get())
+
     def set_all_folds(self, expanded):
         self.collapse.set(True)
         self.expanded = {start for start, _ in self.folds} if expanded else set()
-        self.apply_folds()
+        self.change_collapse()
 
     def toggle_fold(self, start):
         if start in self.expanded:
@@ -382,6 +399,12 @@ class LogDiffWindow(tk.Toplevel):
         self.search_status.set(f"Match {self.match_index + 1}/{self.search_count} · {match['side'].title()} line {self.model['rows'][match['row'] - 1][match['side'] + '_number']}")
 
     def filter_issues(self, event=None):
+        if event is not None:
+            variable = str(event.widget.cget('textvariable'))
+            if variable == str(self.issue_kind):
+                self.save_log_options(issue_kind=self.issue_kind.get())
+            elif variable == str(self.issue_side):
+                self.save_log_options(issue_side=self.issue_side.get())
         self.issue_index = -1
         side = self.issue_side.get().casefold()
         severity = {'Errors': 'error', 'Warnings': 'warning'}.get(self.issue_kind.get())

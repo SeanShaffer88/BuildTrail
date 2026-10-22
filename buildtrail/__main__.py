@@ -34,8 +34,11 @@ def main():
     logs.add_argument('before')
     logs.add_argument('after')
     logs.add_argument('-o', '--output', type=Path, help='Export an offline side-by-side HTML report instead of opening a window')
-    logs.add_argument('--collapse', action='store_true', help='Collapse unchanged log sections using saved context lines')
+    logs.add_argument('--collapse', action=argparse.BooleanOptionalAction, default=None, help='Collapse unchanged log sections using saved context lines')
     logs.add_argument('--context-lines', type=int, choices=range(101), metavar='0..100', help='Override saved log context for this view/export')
+    logs.add_argument('--match-case', action=argparse.BooleanOptionalAction, default=None, help='Override saved search case matching')
+    logs.add_argument('--severity', choices=['all', 'errors', 'warnings'], help='Override saved severity filter')
+    logs.add_argument('--build', choices=['both', 'before', 'after'], help='Override saved build filter')
     args = parser.parse_args()
     try:
         if args.command in (None, 'gui'):
@@ -52,9 +55,12 @@ def main():
         store = BuildStore(args.data_dir)
         if args.command == 'logs':
             before, after = store.load(args.before), store.load(args.after)
+            overrides = dict(collapse=args.collapse, match_case=args.match_case,
+                issue_kind={'all': 'Errors & warnings', 'errors': 'Errors', 'warnings': 'Warnings'}.get(args.severity),
+                issue_side={'both': 'Both logs', 'before': 'Before', 'after': 'After'}.get(args.build))
             if args.output:
                 from .logreport import export_log_report
-                export_log_report(store, before, after, args.output, collapse=args.collapse, context_lines=args.context_lines)
+                export_log_report(store, before, after, args.output, context_lines=args.context_lines, **overrides)
                 print('Exported:', args.output.resolve())
                 return 0
             import tkinter as tk
@@ -63,8 +69,7 @@ def main():
             root = tk.Tk()
             root.withdraw()
             Theme(root, store.directory / 'preferences.json')
-            window = LogDiffWindow(root, store, before, after)
-            window.collapse.set(args.collapse)
+            window = LogDiffWindow(root, store, before, after, **overrides)
             if args.context_lines is not None:
                 window.context_value = args.context_lines
                 window.context.set(str(args.context_lines))

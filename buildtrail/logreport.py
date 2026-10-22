@@ -6,7 +6,7 @@ from html import escape
 from . import __version__
 from .logdiff import load_log, align_logs, unchanged_sections
 from .organization import run_name
-from .logsettings import read_context, validate_context
+from .logsettings import read_context, validate_context, resolve_options
 from ._apptrail.core import atomic_write
 from ._apptrail.history import history_directory
 
@@ -70,9 +70,11 @@ applyFolds();search();filterIssues();
 '''
 
 
-def render_log_report(store, before, after, *, query='', match_case=False,
-                      issue_kind='Errors & warnings', issue_side='Both logs', theme='dark',
-                      collapse=False, expanded=(), context_lines=None):
+def render_log_report(store, before, after, *, query='', match_case=None,
+                      issue_kind=None, issue_side=None, theme='dark',
+                      collapse=None, expanded=(), context_lines=None):
+    options = resolve_options(store.directory / 'preferences.json', collapse=collapse, match_case=match_case, issue_kind=issue_kind, issue_side=issue_side)
+    collapse, match_case, issue_kind, issue_side = (options[key] for key in ('collapse', 'match_case', 'issue_kind', 'issue_side'))
     context_lines = read_context(store.directory / 'preferences.json') if context_lines is None else validate_context(context_lines)
     before, left = load_log(store, before)
     after, right = load_log(store, after)
