@@ -5,6 +5,7 @@ import json
 
 from . import __version__
 from .core import table_changes, source_comparison
+from .organization import run_name
 from ._apptrail.core import atomic_write
 from ._apptrail.textdiff import build_diff, diff_text
 
@@ -55,6 +56,8 @@ def render_report(store, before, after=None):
         info = {key: run.get(key) for key in ('id', 'status', 'exit_code', 'started_at', 'build_started_at',
             'completed_at', 'duration_seconds', 'total_seconds', 'machine', 'source_id', 'warnings',
             'outputs_before_complete', 'outputs_after_complete', 'dependencies_complete', 'dependencies_after_complete')}
+        info['run_name'] = run_name(run)
+        info['notes'] = run.get('organization', {}).get('notes', '')
         info['recipe'] = run['recipe']
         parts.append(section(title, pre(json.dumps(info, ensure_ascii=False, indent=2))))
         parts.append(section(title + ' · tool/compiler probes', pre(json.dumps(run['tools'], ensure_ascii=False, indent=2))))

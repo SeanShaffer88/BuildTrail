@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import queue
+import sqlite3
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
@@ -11,6 +12,7 @@ from . import __version__
 from .core import (BuildStore, default_recipe, validate_recipe, run_build, source_comparison,
                    table_changes)
 from .report import render_report, export_report
+from .organization import run_name
 from ._apptrail.core import atomic_write
 from ._apptrail.history import SnapshotHistory
 from ._apptrail.checkpoints import capture_checkpoint
@@ -125,8 +127,16 @@ class BuildTrail:
         frame = self.history_tab
         ttk.Label(frame, text='Select one run to inspect it, or two to compare inputs, tools, logs, outputs, and source.',
                   wraplength=1100).pack(anchor='w', pady=(0, 12))
+        controls = ttk.Frame(frame)
+        controls.pack(fill='x', pady=(0, 10))
+        ttk.Label(controls, text='Filter names, notes, recipes, or projects:').pack(side='left')
+        self.history_filter = tk.StringVar()
+        ttk.Entry(controls, textvariable=self.history_filter, width=45).pack(side='left', padx=8)
+        self.show_trash = tk.BooleanVar(value=False)
+        ttk.Checkbutton(controls, text='Show Trash', variable=self.show_trash, command=self.refresh_history).pack(side='right')
+        self.history_filter.trace_add('write', lambda *_: self.refresh_history())
         self.tree = ttk.Treeview(frame, columns=('name', 'status', 'exit', 'time', 'duration', 'project'), show='headings', selectmode='extended')
-        for key, title, width in [('name', 'Recipe', 190), ('status', 'Result', 95), ('exit', 'Exit', 50),
+        for key, title, width in [('name', 'Run name', 220), ('status', 'Result', 95), ('exit', 'Exit', 50),
                                   ('time', 'Started (UTC)', 180), ('duration', 'Seconds', 80), ('project', 'Project', 450)]:
             self.tree.heading(key, text=title)
             self.tree.column(key, width=width, minwidth=45)
@@ -135,11 +145,20 @@ class BuildTrail:
         self.tree.configure(yscrollcommand=scroll.set)
         self.tree.pack(fill='both', expand=True)
         self.tree.bind('<Double-1>', lambda event: self.view_selected())
+        self.tree.bind('<<TreeviewSelect>>', self.history_selection_changed)
         bar = ttk.Frame(frame)
         bar.pack(fill='x', pady=12)
         for title, command in [('View run', self.view_selected), ('Compare selected (2)', self.compare_selected),
                                ('Refresh history', self.refresh_history), ('Load run recipe', self.recipe_from_run)]:
             ttk.Button(bar, text=title, command=command).pack(side='left', padx=(0, 8))
+
+        organize = ttk.Frame(frame)
+        organize.pack(fill='x', pady=(0, 8))
+        for title, command in [('Edit name & notes…', self.edit_run), ('Move to Trash…', self.trash_runs),
+                               ('Restore selected', self.restore_runs), ('Delete permanently…', self.purge_runs)]:
+            ttk.Button(organize, text=title, command=command).pack(side='left', padx=(0, 8))
+        self.history_info = tk.StringVar(value='Select a run to see its notes.')
+        ttk.Label(frame, textvariable=self.history_info, wraplength=1100, style='Subtitle.TLabel').pack(anchor='w')
 
     def build_review(self):
         bar = ttk.Frame(self.review_tab)
@@ -286,20 +305,114 @@ class BuildTrail:
 
     def refresh_history(self):
         selected = self.tree.selection()
-        self.records = {r['id']: r for r in self.store.entries()}
+        try:
+            self.records = {r['id']: r for r in self.store.entries(self.history_filter.get(), deleted=self.show_trash.get())}
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.status.set('Cannot load run history: ' + str(exc))
+            return
         self.tree.delete(*self.tree.get_children())
         for record in self.records.values():
-            self.tree.insert('', 'end', iid=record['id'], values=(record['recipe']['name'], record['status'],
+            self.tree.insert('', 'end', iid=record['id'], values=(run_name(record), record['status'],
                 record['exit_code'] if record['exit_code'] is not None else '—', record['started_at'],
                 record.get('duration_seconds', '—'), record['recipe']['project']))
         self.tree.selection_set([identity for identity in selected if identity in self.records])
+        self.history_selection_changed()
+
+    def history_selection_changed(self, event=None):
+        identities = self.tree.selection()
+        if len(identities) == 1 and identities[0] in self.records:
+            run = self.records[identities[0]]
+            notes = run.get('organization', {}).get('notes') or 'No notes yet.'
+            preview = ' '.join(notes.split())
+            self.history_info.set(run_name(run) + ' · ' + preview[:400] + ('…' if len(preview) > 400 else ''))
+        else:
+            self.history_info.set(f'{len(identities)} runs selected' if identities else 'Select a run to see its notes.')
+
+    def edit_run(self):
+        if self.busy:
+            return
+        runs = self.selected(1)
+        if runs:
+            return RunEditor(self.root, self.store, runs[0], self.metadata_saved)
+
+    def metadata_saved(self, identity):
+        self.refresh_history()
+        if identity in self.records:
+            self.tree.selection_set(identity)
+            self.tree.see(identity)
+        if any(r['id'] == identity for r in self.review_runs):
+            self.show_runs([self.store.load(r['id']) for r in self.review_runs])
+
+    def organize_selection(self, trash=False):
+        if self.busy:
+            messagebox.showinfo('Build in progress', 'Wait until the current capture finishes before organizing runs.', parent=self.root)
+            return []
+        if self.show_trash.get() != trash:
+            messagebox.showinfo('Choose a history view', 'Turn on Show Trash first.' if trash else 'Turn off Show Trash first.', parent=self.root)
+            return []
+        identities = list(self.tree.selection())
+        if not identities:
+            messagebox.showinfo('Select runs', 'Select at least one run.', parent=self.root)
+        return identities
+
+    def clear_removed_review(self, identities):
+        if any(r['id'] in identities for r in self.review_runs):
+            self.review_runs = ()
+            self.set_review('A reviewed run was moved to Trash or deleted. Restore it or select other runs.')
+
+    def trash_runs(self):
+        identities = self.organize_selection()
+        if not identities:
+            return
+        if not messagebox.askyesno('Move runs to Trash?', f'Move {len(identities)} build run(s) to Trash?\n\nYou can restore them later. Project files, recipes, and AppTrail history are untouched.', parent=self.root):
+            return
+        try:
+            self.store.trash(identities)
+            self.clear_removed_review(identities)
+            self.refresh_history()
+            self.status.set(f'Moved {len(identities)} run(s) to Trash. Turn on Show Trash to restore them.')
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror('Cannot move runs', str(exc), parent=self.root)
+
+    def restore_runs(self):
+        identities = self.organize_selection(trash=True)
+        if not identities:
+            return
+        try:
+            self.store.restore(identities)
+            self.refresh_history()
+            self.status.set(f'Restored {len(identities)} run(s). Turn off Show Trash to see them.')
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror('Cannot restore runs', str(exc), parent=self.root)
+
+    def purge_runs(self):
+        identities = self.organize_selection(trash=True)
+        if not identities:
+            return
+        if not messagebox.askyesno('Permanently delete runs?', f'Permanently delete {len(identities)} trashed run(s), their notes, logs, and saved evidence?\n\nThis cannot be undone. Project outputs, recipes, and shared AppTrail checkpoints remain.', parent=self.root, icon='warning', default='no'):
+            return
+        try:
+            self.store.purge(identities)
+            self.clear_removed_review(identities)
+            self.refresh_history()
+            self.status.set(f'Permanently deleted {len(identities)} owned build run(s).')
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            self.refresh_history()
+            messagebox.showerror('Deletion incomplete', str(exc), parent=self.root)
 
     def selected(self, count):
         selected = self.tree.selection()
         if len(selected) != count:
             messagebox.showinfo('Select builds', f'Select exactly {count} build run(s) in Build history.', parent=self.root)
             return []
-        return [self.store.load(identity) for identity in selected]
+        if self.show_trash.get():
+            messagebox.showinfo('Restore first', 'Restore runs from Trash before reviewing, comparing, or loading their recipes.', parent=self.root)
+            return []
+        try:
+            return [self.store.load(identity) for identity in selected]
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror('Run history', str(exc), parent=self.root)
+            return []
 
     def view_selected(self):
         if runs := self.selected(1):
@@ -318,7 +431,10 @@ class BuildTrail:
         self.review_runs = tuple(runs)
         text = []
         for run in runs:
-            text.append(f"{run['recipe']['name']} · {run['status']} · exit {run['exit_code']}\n{run['started_at']} · {run['recipe']['project']}\n")
+            text.append(f"{run_name(run)} · {run['status']} · exit {run['exit_code']}\n{run['started_at']} · {run['recipe']['project']}\n")
+            text.append('Original recipe: ' + run['recipe']['name'])
+            if run.get('organization', {}).get('notes'):
+                text.append('Notes: ' + run['organization']['notes'])
             text.append('Command: ' + (json.dumps(run['recipe']['argv']) if run['recipe'].get('shell') == 'argv' else run['recipe']['command']))
             text.append('AppTrail source: ' + run.get('source_id', 'unavailable'))
             for row in run.get('output_changes', []):
@@ -344,7 +460,8 @@ class BuildTrail:
     def chosen_report(self):
         if not self.review_runs:
             raise ValueError('View a saved run or compare two runs first.')
-        return self.review_runs[0], self.review_runs[1] if len(self.review_runs) == 2 else None
+        runs = [self.store.load(r['id']) for r in self.review_runs]
+        return runs[0], runs[1] if len(runs) == 2 else None
 
     def open_review(self):
         try:
@@ -396,6 +513,8 @@ class BuildTrail:
                 messagebox.showerror('BuildTrail', payload, parent=self.root)
             elif payload[0] == 'run':
                 record = payload[1]
+                self.show_trash.set(False)
+                self.history_filter.set('')
                 self.refresh_history()
                 self.tree.selection_set(record['id'])
                 self.tree.see(record['id'])
@@ -414,6 +533,44 @@ class BuildTrail:
             return
         self.root.after_cancel(self.poll_id)
         self.root.destroy()
+
+
+class RunEditor(tk.Toplevel):
+    def __init__(self, parent, store, record, on_saved):
+        super().__init__(parent)
+        self.store, self.identity, self.on_saved = store, record['id'], on_saved
+        self.title('Edit build run name and notes')
+        self.transient(parent)
+        frame = ttk.Frame(self, padding=18)
+        frame.pack(fill='both', expand=True)
+        ttk.Label(frame, text='Run name').pack(anchor='w')
+        self.name = tk.StringVar(value=run_name(record))
+        entry = ttk.Entry(frame, textvariable=self.name, width=70)
+        entry.pack(fill='x', pady=(4, 12))
+        ttk.Label(frame, text='Notes · test results, issue numbers, or why this build matters').pack(anchor='w')
+        self.notes = tk.Text(frame, width=70, height=10, wrap='word', font=('Segoe UI', 10))
+        self.notes.insert('1.0', record.get('organization', {}).get('notes', ''))
+        self.notes.pack(fill='both', expand=True, pady=(4, 12))
+        ttk.Label(frame, text='Names and notes are stored separately from the original recipe and captured evidence.').pack(anchor='w')
+        bar = ttk.Frame(frame)
+        bar.pack(fill='x', pady=(12, 0))
+        ttk.Button(bar, text='Save', command=self.save).pack(side='right')
+        ttk.Button(bar, text='Cancel', command=self.destroy).pack(side='right', padx=8)
+        theme = getattr(parent, '_apptrail_theme', None)
+        if theme:
+            theme.paint(self)
+        self.grab_set()
+        entry.focus_set()
+        entry.selection_range(0, 'end')
+
+    def save(self):
+        try:
+            self.store.update_metadata(self.identity, self.name.get(), self.notes.get('1.0', 'end-1c'))
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            messagebox.showerror('Cannot save run details', str(exc), parent=self)
+            return
+        self.on_saved(self.identity)
+        self.destroy()
 
 
 def main():

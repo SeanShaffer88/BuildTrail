@@ -30,7 +30,9 @@ def main():
         recipe['argv'] = [sys.executable, '-c', "import sys; print('compiler error: broken value'); print('<script>window.buildtrailInjected = true</script>'); sys.exit(2)"]
         bad = run_build(recipe, store, history)
         assert good['status'] == 'success' and bad['status'] == 'failed'
-        report = render_report(store, good, bad)
+        store.update_metadata(good['id'], 'Known-good release', 'Smoke tests passed.\nKeep as the release reference.')
+        store.update_metadata(bad['id'], 'Feature branch compile failure', 'Investigating issue #42.\nPrevious output remains on disk.')
+        report = render_report(store, store.load(good['id']), store.load(bad['id']))
         # Public demo only: normalize temporary project/interpreter paths.
         from html import escape
         report = report.replace(escape(str(base), quote=True), 'C:/BuildTrail-Demo')

@@ -103,6 +103,76 @@ class GuiTests(unittest.TestCase):
         self.assertFalse(self.app.busy)
         self.assertEqual(self.store.entries(), [])
 
+    def test_rename_notes_filter_and_review_preserve_original_recipe(self):
+        self.app.run()
+        self.finish()
+        identity = self.app.tree.selection()[0]
+        evidence = (self.store.run_path(identity) / 'run.json').read_bytes()
+        editor = self.app.edit_run()
+        editor.name.set('Release candidate 2')
+        editor.notes.insert('1.0', 'Tests passed\nIssue #123')
+        editor.save()
+        self.assertEqual(self.app.tree.item(identity, 'values')[0], 'Release candidate 2')
+        self.assertIn('Issue #123', self.app.review.get('1.0', 'end'))
+        self.assertEqual((self.store.run_path(identity) / 'run.json').read_bytes(), evidence)
+        self.assertNotIn('\n', self.app.history_info.get())
+        self.app.history_filter.set('issue #123')
+        self.assertEqual(self.app.tree.get_children(), (identity,))
+        self.app.history_filter.set('no match')
+        self.assertEqual(self.app.tree.get_children(), ())
+
+    def test_trash_restore_and_delete_leave_apptrail_and_project(self):
+        self.app.run()
+        self.finish()
+        identity = self.app.tree.selection()[0]
+        source_id = self.store.load(identity)['source_id']
+        with patch('buildtrail.gui.messagebox.askyesno', return_value=True):
+            self.app.trash_runs()
+        self.assertEqual(self.app.review_runs, ())
+        self.assertEqual(self.app.tree.get_children(), ())
+        self.app.show_trash.set(True)
+        self.app.refresh_history()
+        self.app.tree.selection_set(identity)
+        with patch('buildtrail.gui.messagebox.showinfo') as info:
+            self.app.view_selected()
+        info.assert_called_once()
+        self.app.restore_runs()
+        self.app.show_trash.set(False)
+        self.app.refresh_history()
+        self.app.tree.selection_set(identity)
+        with patch('buildtrail.gui.messagebox.askyesno', return_value=True):
+            self.app.trash_runs()
+        self.app.show_trash.set(True)
+        self.app.refresh_history()
+        self.app.tree.selection_set(identity)
+        with patch('buildtrail.gui.messagebox.askyesno', return_value=True) as confirm:
+            self.app.purge_runs()
+        self.assertEqual(confirm.call_args.kwargs['default'], 'no')
+        self.assertFalse(self.store.run_path(identity).exists())
+        self.assertEqual((self.project / 'source.txt').read_text(), 'before')
+        self.assertEqual(self.history.load(source_id)['root'], str(self.project))
+
+    def test_cancelled_trash_keeps_run(self):
+        self.app.run()
+        self.finish()
+        identity = self.app.tree.selection()[0]
+        with patch('buildtrail.gui.messagebox.askyesno', return_value=False):
+            self.app.trash_runs()
+        self.assertEqual(self.store.load(identity)['status'], 'success')
+
+    def test_export_reloads_notes_and_rejects_externally_trashed_run(self):
+        self.app.run()
+        self.finish()
+        identity = self.app.tree.selection()[0]
+        other = BuildStore(self.store.directory)
+        other.update_metadata(identity, 'Updated elsewhere', 'Fresh notes')
+        before, after = self.app.chosen_report()
+        self.assertIsNone(after)
+        self.assertEqual(before['organization']['notes'], 'Fresh notes')
+        other.trash([identity])
+        with self.assertRaises(ValueError):
+            self.app.chosen_report()
+
     def test_live_log_view_is_bounded(self):
         self.app.append_review('x' * 300000)
         self.assertLessEqual(len(self.app.review.get('1.0', 'end-1c')), 200000)

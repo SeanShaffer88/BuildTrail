@@ -10,3 +10,10 @@ Consulted useful-dev-resources/AGENTS.md and the builds/packages and Windows bui
 | [PyInstaller](https://pyinstaller.org/en/stable/license.html) | Existing pinned Windows one-file GUI packaging | Unsigned EXE, extraction at launch; native ARM64 not validated | Existing AppTrail build pins reused, license/bootloader exception reviewed; build and launch checked for this release |
 
 CMake, Ninja, MSVC, dotnet, and package managers are user-installed tools invoked only through recipes/probes. BuildTrail does not bundle them or claim universal support for every version. Dependency manifests are observations, not an SBOM or a lockfile resolver. No online service, account integration, or credential is needed at runtime.
+
+
+0.2.0 retains the existing standard-library stack and adds sqlite3 organization
+storage alongside immutable run evidence, following AppTrail's established local
+catalog approach. Run locks use Windows byte-range locking (msvcrt) or flock on
+POSIX. Targeted tests cover cross-process exclusion, deletion rollback/recovery,
+and Windows junction refusal. No new runtime package or resource was adopted.

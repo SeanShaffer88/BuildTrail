@@ -5,6 +5,7 @@ import sys
 
 from .core import BuildStore, run_build, validate_recipe
 from .report import export_report
+from .organization import run_name
 
 
 def main():
@@ -50,7 +51,7 @@ def main():
             return 0 if record['status'] == 'success' else 1
         if args.command == 'list':
             for record in store.entries():
-                print(record['id'], record['status'], record['recipe']['name'], record['started_at'])
+                print(record['id'], record['status'], run_name(record), record['started_at'])
             return 0
         before = store.load(args.before)
         after = store.load(args.after) if args.after else None

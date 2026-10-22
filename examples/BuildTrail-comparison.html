@@ -3,24 +3,26 @@
 <title>BuildTrail · Build evidence</title><style>
 *{box-sizing:border-box}body{background:#0c0c0c;color:#ccc;font:15px/1.6 'Segoe UI',sans-serif;margin:0}main{max-width:1250px;margin:auto;padding:36px 24px}h1{font-size:36px;color:#eee}h2{color:#82aaff;font-size:21px}h3{font-size:16px}section{border:1px solid #333;background:#161616;padding:20px;margin:20px 0;border-radius:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 Consolas,monospace}table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;vertical-align:top;border-bottom:1px solid #333;padding:10px;overflow-wrap:anywhere;max-width:400px}.scroll{overflow:auto}th{color:#8fbf87}summary{cursor:pointer;color:#76d7e4}details{padding:10px 0}footer{color:#aaa}@media print{body,section{background:white;color:black}h1,h2,h3,th,summary{color:black}details{display:block}}
 </style></head><body><main><h1>BuildTrail · Build evidence</h1><p>Saved build commands, compiler/tool observations, dependency manifests, output hashes, and AppTrail source checkpoints.</p><section><h2>Before build</h2><pre>{
-  &quot;id&quot;: &quot;c52ba3e4e7da433c8c1ba802cc582401&quot;,
+  &quot;id&quot;: &quot;7b969f2aeae2435b957de087bb0401fa&quot;,
   &quot;status&quot;: &quot;success&quot;,
   &quot;exit_code&quot;: 0,
-  &quot;started_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
-  &quot;build_started_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
-  &quot;completed_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
-  &quot;duration_seconds&quot;: 0.097,
-  &quot;total_seconds&quot;: 0.232,
+  &quot;started_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
+  &quot;build_started_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
+  &quot;completed_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
+  &quot;duration_seconds&quot;: 0.09,
+  &quot;total_seconds&quot;: 0.21,
   &quot;machine&quot;: {
     &quot;os&quot;: &quot;Windows-11-10.0.26300-SP0&quot;,
     &quot;architecture&quot;: &quot;AMD64&quot;
   },
-  &quot;source_id&quot;: &quot;b51d038bca9e6e06c55dcbe7a1e7f5db221e7120f10c2d837771a5a0cfb32e15&quot;,
+  &quot;source_id&quot;: &quot;da724496d17ac4669d509a812b0556e73da9faf1bf4d30fb782a039d288d98da&quot;,
   &quot;warnings&quot;: [],
   &quot;outputs_before_complete&quot;: true,
   &quot;outputs_after_complete&quot;: true,
   &quot;dependencies_complete&quot;: true,
   &quot;dependencies_after_complete&quot;: true,
+  &quot;run_name&quot;: &quot;Known-good release&quot;,
+  &quot;notes&quot;: &quot;Smoke tests passed.\nKeep as the release reference.&quot;,
   &quot;recipe&quot;: {
     &quot;name&quot;: &quot;Release build&quot;,
     &quot;project&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
@@ -34,7 +36,7 @@
       &quot;dist/&quot;
     ],
     &quot;capture_text&quot;: true,
-    &quot;checkpoint_id&quot;: &quot;718fd78f007aa96a621bca3cf6173de527a0289f5e9c000453cb071077f6d71a&quot;,
+    &quot;checkpoint_id&quot;: &quot;9ae1b8c0cb5eb025d7475da888f256dc5658c279c75709f81c63004c822df74a&quot;,
     &quot;tools&quot;: [
       [
         &quot;python.exe&quot;,
@@ -56,7 +58,7 @@
     &quot;resolved_executable&quot;: &quot;python.exe&quot;,
     &quot;exit_code&quot;: 0,
     &quot;state&quot;: &quot;completed&quot;,
-    &quot;duration_seconds&quot;: 0.084,
+    &quot;duration_seconds&quot;: 0.074,
     &quot;log_bytes&quot;: 15,
     &quot;log_truncated&quot;: false,
     &quot;output&quot;: &quot;Python 3.15.0\n&quot;
@@ -64,7 +66,7 @@
 ]</pre></section><section><h2>Before build · outputs created or changed during this run</h2><div class="scroll"><table><thead><tr><th>Change</th><th>File</th><th>Before SHA-256</th><th>After SHA-256</th><th>Capture issue</th></tr></thead><tbody><tr><td>Added</td><td>dist/demo.exe</td><td>Unavailable</td><td>adac0756366acc021058c3202d66cdc125f2e39298f358a9904f02100ee23653</td><td></td></tr></tbody></table></div><p>Unchanged files were already present; they are not proof that this run produced them.</p></section><section><h2>Before build · dependency manifests before / after command</h2><div class="scroll"><table><thead><tr><th>Change</th><th>File</th><th>Before SHA-256</th><th>After SHA-256</th><th>Capture issue</th></tr></thead><tbody><tr><td>Unchanged</td><td>requirements.txt</td><td>78d14a1b6272c3c7c3814b6026f9d7e0e2c15cd5b559d2fa6db64a88bf5a054b</td><td>78d14a1b6272c3c7c3814b6026f9d7e0e2c15cd5b559d2fa6db64a88bf5a054b</td><td></td></tr></tbody></table></div></section><section><h2>Before build · build log</h2><p>Preview limited to 200,000 characters; full captured log is stored with the build.</p><pre>build succeeded
 </pre></section><section><h2>Before build · linked AppTrail checkpoint → build source</h2><pre>Added: 0 · Removed: 0 · Modified: 0 · Metadata: 0 · Unchanged: 2 · Unknown: 0</pre><h3>Before · Before feature</h3><pre>{
   &quot;root&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
-  &quot;captured_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
+  &quot;captured_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
   &quot;git&quot;: {
     &quot;message&quot;: &quot;Git metadata unavailable (folder may not be a repository or have a commit).&quot;,
     &quot;status&quot;: &quot;unavailable&quot;
@@ -75,7 +77,7 @@
   &quot;warnings&quot;: []
 }</pre><h3>After · Build · Release build</h3><pre>{
   &quot;root&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
-  &quot;captured_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
+  &quot;captured_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
   &quot;git&quot;: {
     &quot;status&quot;: &quot;unavailable&quot;,
     &quot;message&quot;: &quot;Git metadata unavailable (folder may not be a repository or have a commit).&quot;
@@ -85,24 +87,26 @@
   ],
   &quot;warnings&quot;: []
 }</pre></section><section><h2>After build</h2><pre>{
-  &quot;id&quot;: &quot;ea9db188f7894b92a37503d5254c5bfb&quot;,
+  &quot;id&quot;: &quot;5bf1ba0e29244edf80bb65e67972de5d&quot;,
   &quot;status&quot;: &quot;failed&quot;,
   &quot;exit_code&quot;: 2,
-  &quot;started_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
-  &quot;build_started_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
-  &quot;completed_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
-  &quot;duration_seconds&quot;: 0.092,
-  &quot;total_seconds&quot;: 0.217,
+  &quot;started_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
+  &quot;build_started_at&quot;: &quot;2026-10-22T04:02:41+00:00&quot;,
+  &quot;completed_at&quot;: &quot;2026-10-22T04:02:41+00:00&quot;,
+  &quot;duration_seconds&quot;: 0.084,
+  &quot;total_seconds&quot;: 0.199,
   &quot;machine&quot;: {
     &quot;os&quot;: &quot;Windows-11-10.0.26300-SP0&quot;,
     &quot;architecture&quot;: &quot;AMD64&quot;
   },
-  &quot;source_id&quot;: &quot;3af9408d8beaac88ead495ddc1d3339f5bf8368890f68f941b1c83b074815f59&quot;,
+  &quot;source_id&quot;: &quot;5bc539d44a46ee46e2f7a5b37a71a639788f999d7cd8be2b40b1fae699bbc274&quot;,
   &quot;warnings&quot;: [],
   &quot;outputs_before_complete&quot;: true,
   &quot;outputs_after_complete&quot;: true,
   &quot;dependencies_complete&quot;: true,
   &quot;dependencies_after_complete&quot;: true,
+  &quot;run_name&quot;: &quot;Feature branch compile failure&quot;,
+  &quot;notes&quot;: &quot;Investigating issue #42.\nPrevious output remains on disk.&quot;,
   &quot;recipe&quot;: {
     &quot;name&quot;: &quot;Release build&quot;,
     &quot;project&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
@@ -116,7 +120,7 @@
       &quot;dist/&quot;
     ],
     &quot;capture_text&quot;: true,
-    &quot;checkpoint_id&quot;: &quot;718fd78f007aa96a621bca3cf6173de527a0289f5e9c000453cb071077f6d71a&quot;,
+    &quot;checkpoint_id&quot;: &quot;9ae1b8c0cb5eb025d7475da888f256dc5658c279c75709f81c63004c822df74a&quot;,
     &quot;tools&quot;: [
       [
         &quot;python.exe&quot;,
@@ -138,7 +142,7 @@
     &quot;resolved_executable&quot;: &quot;python.exe&quot;,
     &quot;exit_code&quot;: 0,
     &quot;state&quot;: &quot;completed&quot;,
-    &quot;duration_seconds&quot;: 0.077,
+    &quot;duration_seconds&quot;: 0.068,
     &quot;log_bytes&quot;: 15,
     &quot;log_truncated&quot;: false,
     &quot;output&quot;: &quot;Python 3.15.0\n&quot;
@@ -147,7 +151,7 @@
 &lt;script&gt;window.buildtrailInjected = true&lt;/script&gt;
 </pre></section><section><h2>After build · linked AppTrail checkpoint → build source</h2><pre>Added: 0 · Removed: 0 · Modified: 2 · Metadata: 0 · Unchanged: 0 · Unknown: 0</pre><h3>Before · Before feature</h3><pre>{
   &quot;root&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
-  &quot;captured_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
+  &quot;captured_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
   &quot;git&quot;: {
     &quot;message&quot;: &quot;Git metadata unavailable (folder may not be a repository or have a commit).&quot;,
     &quot;status&quot;: &quot;unavailable&quot;
@@ -158,7 +162,7 @@
   &quot;warnings&quot;: []
 }</pre><h3>After · Build · Release build</h3><pre>{
   &quot;root&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
-  &quot;captured_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
+  &quot;captured_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
   &quot;git&quot;: {
     &quot;status&quot;: &quot;unavailable&quot;,
     &quot;message&quot;: &quot;Git metadata unavailable (folder may not be a repository or have a commit).&quot;
@@ -186,12 +190,10 @@ Last-write timestamp changed.</pre><pre>1 added line(s), 1 removed line(s). Unif
 +++ after/requirements.txt
 @@ -1 +1 @@
 -demo-package==1.0
-
 +demo-package==2.0
-
 </pre></details></section><section><h2>Tool/compiler differences between builds</h2><div class="scroll"><table><thead><tr><th>Probe</th><th>Result</th><th>Before</th><th>After</th></tr></thead><tbody><tr><td>[&quot;python.exe&quot;, &quot;--version&quot;]</td><td>Unchanged</td><td>{&quot;output&quot;: &quot;Python 3.15.0\n&quot;, &quot;exit_code&quot;: 0, &quot;state&quot;: &quot;completed&quot;, &quot;error&quot;: null, &quot;log_truncated&quot;: false}</td><td>{&quot;output&quot;: &quot;Python 3.15.0\n&quot;, &quot;exit_code&quot;: 0, &quot;state&quot;: &quot;completed&quot;, &quot;error&quot;: null, &quot;log_truncated&quot;: false}</td></tr></tbody></table></div></section><section><h2>AppTrail source changes between builds</h2><pre>Added: 0 · Removed: 0 · Modified: 2 · Metadata: 0 · Unchanged: 0 · Unknown: 0</pre><h3>Before · Build · Release build</h3><pre>{
   &quot;root&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
-  &quot;captured_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
+  &quot;captured_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
   &quot;git&quot;: {
     &quot;status&quot;: &quot;unavailable&quot;,
     &quot;message&quot;: &quot;Git metadata unavailable (folder may not be a repository or have a commit).&quot;
@@ -202,7 +204,7 @@ Last-write timestamp changed.</pre><pre>1 added line(s), 1 removed line(s). Unif
   &quot;warnings&quot;: []
 }</pre><h3>After · Build · Release build</h3><pre>{
   &quot;root&quot;: &quot;C:/BuildTrail-Demo\\demo&quot;,
-  &quot;captured_at&quot;: &quot;2026-10-22T03:30:36+00:00&quot;,
+  &quot;captured_at&quot;: &quot;2026-10-22T04:02:40+00:00&quot;,
   &quot;git&quot;: {
     &quot;status&quot;: &quot;unavailable&quot;,
     &quot;message&quot;: &quot;Git metadata unavailable (folder may not be a repository or have a commit).&quot;
@@ -232,4 +234,4 @@ Last-write timestamp changed.</pre><pre>1 added line(s), 1 removed line(s). Unif
 -build succeeded
 +compiler error: broken value
 +&lt;script&gt;window.buildtrailInjected = true&lt;/script&gt;
-</pre></section><footer>BuildTrail 0.1.0 · Times are UTC. Merged logs use UTF-8 replacement decoding. Manifest evidence is not a complete installed/transitive dependency inventory. Tool probes run in the recipe's inherited environment before the build command; environment changes made inside the command are not reflected in earlier probes. Snapshots are sequential observations, not atomic backups. Exit code zero does not guarantee correct or newly produced artifacts. Commands and logs may contain private information; review before sharing. No scripts or network requests are used by this report.</footer></main></body></html>
+</pre></section><footer>BuildTrail 0.2.0 · Times are UTC. Merged logs use UTF-8 replacement decoding. Manifest evidence is not a complete installed/transitive dependency inventory. Tool probes run in the recipe's inherited environment before the build command; environment changes made inside the command are not reflected in earlier probes. Snapshots are sequential observations, not atomic backups. Exit code zero does not guarantee correct or newly produced artifacts. Commands and logs may contain private information; review before sharing. No scripts or network requests are used by this report.</footer></main></body></html>

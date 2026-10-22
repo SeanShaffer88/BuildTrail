@@ -9,7 +9,7 @@ const {chromium} = require(process.env.BUILDTRAIL_PLAYWRIGHT || 'playwright');
     page.on('request', request => { if (/^https?:/.test(request.url())) external.push(request.url()); });
     await page.goto(pathToFileURL(process.argv[2]).href);
     const text = await page.locator('body').innerText();
-    for (const expected of ['success', 'failed', 'Unchanged', 'compiler error', 'Dependency input differences', 'AppTrail source changes']) {
+    for (const expected of ['success', 'failed', 'Unchanged', 'compiler error', 'Dependency input differences', 'AppTrail source changes', 'Known-good release', 'Smoke tests passed.', 'Investigating issue #42.']) {
       assert(text.includes(expected), expected);
     }
     assert.equal(await page.evaluate(() => window.buildtrailInjected), undefined);

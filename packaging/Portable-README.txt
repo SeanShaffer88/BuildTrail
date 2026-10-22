@@ -1,4 +1,4 @@
-BuildTrail 0.1.0 — Windows x64 portable edition
+BuildTrail 0.2.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -43,3 +43,16 @@ Snapshots are sequential observations, not atomic backups or signed attestations
 Commands, logs, dependency files, and source snapshots can contain private data.
 Review reports before sharing. Environment variable values are not inventoried.
 The Windows executable is unsigned. Windows 11 x64 is the validated platform.
+
+Organize build runs:
+- Select a run and choose Edit name & notes. Details persist across restarts and
+  appear in reviews and newly exported reports. Original evidence stays unchanged.
+- Filter history by run name, notes, original recipe, project, date, or result.
+- Move selected runs to Trash, then enable Show Trash to restore them.
+- Delete permanently is available only in Trash and defaults to No confirmation.
+  It removes run-owned logs/evidence/copies/notes; project files, actual build
+  outputs, saved recipes, exported reports, and shared AppTrail history remain.
+- Trash does not free run-file storage until permanent deletion.
+- Close versions older than 0.2.0 before organizing; they do not support run locks
+  or Trash. Active captures in 0.2.0+ are protected across windows.
+- organization.sqlite3 contains names/notes/Trash state; include it in backups.

@@ -14,6 +14,7 @@ from ._apptrail.core import atomic_write, snapshot_folder, load_snapshot, now, i
 from ._apptrail.checkpoints import exclusion_rules, excluded, git_details
 from ._apptrail.history import SnapshotHistory
 from .process import execute
+from .organization import RunOrganization, run_name
 
 DEFAULT_EXCLUSIONS = ['.git/', '.venv/', 'venv/', '__pycache__/', 'node_modules/', 'build/', 'dist/', 'obj/', 'bin/']
 DEPENDENCIES = ['requirements*.txt', 'pyproject.toml', 'uv.lock', 'poetry.lock', 'Pipfile*',
@@ -74,21 +75,27 @@ def validate_recipe(recipe):
     return recipe
 
 
-class BuildStore:
+class BuildStore(RunOrganization):
     def __init__(self, directory=None):
         self.directory = Path(directory if directory is not None else data_directory()).resolve()
         self.runs = self.directory / 'runs'
         self.runs.mkdir(parents=True, exist_ok=True)
+        if self.runs.resolve() != self.runs or is_link(self.runs.stat(follow_symlinks=False)):
+            raise ValueError('Run storage must not be a link or reparse point.')
+        self.initialize_organization()
 
     def run_path(self, identity):
         if not isinstance(identity, str) or len(identity) != 32 or any(c not in '0123456789abcdef' for c in identity):
             raise ValueError('Invalid build ID.')
-        return self.runs / identity
+        path = self.runs / identity
+        if self.runs.resolve() != self.runs or path.resolve().parent != self.runs or (path.exists() and is_link(path.stat(follow_symlinks=False))):
+            raise ValueError('Run path escapes or links outside the managed library.')
+        return path
 
     def save(self, record):
-        atomic_write(self.run_path(record['id']) / 'run.json', json.dumps(record, indent=2, ensure_ascii=False))
+        atomic_write(self.run_path(record['id']) / 'run.json', json.dumps({k: v for k, v in record.items() if k != 'organization'}, indent=2, ensure_ascii=False))
 
-    def load(self, identity):
+    def load(self, identity, include_deleted=False):
         record = json.loads((self.run_path(identity) / 'run.json').read_text(encoding='utf-8'))
         if not isinstance(record, dict) or record.get('schema') != 'buildtrail.run.v1' or record.get('id') != identity:
             raise ValueError('Invalid BuildTrail run record.')
@@ -100,13 +107,21 @@ class BuildStore:
                 raise ValueError('Invalid build evidence list: ' + key)
         if not isinstance(record.get('evidence_hashes'), dict):
             raise ValueError('Invalid evidence fingerprints.')
+        record['organization'] = self.organization(identity)
+        if record['organization']['deleted_at'] is not None and not include_deleted:
+            raise ValueError('This run is in Trash. Restore it before reviewing or comparing it.')
         return record
 
-    def entries(self):
+    def entries(self, query='', deleted=False):
         result = []
         for path in self.runs.glob('*/run.json'):
             try:
-                result.append(self.load(path.parent.name))
+                record = self.load(path.parent.name, include_deleted=True)
+                if bool(record['organization']['deleted_at']) != bool(deleted):
+                    continue
+                text = ' '.join((run_name(record), record['organization']['notes'], record['recipe']['name'], record['recipe']['project'], record['started_at'], record['status']))
+                if query.strip().casefold() in text.casefold():
+                    result.append(record)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
         return sorted(result, key=lambda r: (r.get('started_ns', 0), r['id']), reverse=True)
@@ -271,85 +286,86 @@ def run_build(recipe, store, history=None, cancelled=lambda: False, output=lambd
     identity = uuid.uuid4().hex
     directory = store.run_path(identity)
     directory.mkdir()
-    record = {'schema': 'buildtrail.run.v1', 'id': identity, 'recipe': recipe, 'started_at': now(),
-        'started_ns': time.time_ns(), 'completed_at': None, 'status': 'unfinished', 'exit_code': None, 'warnings': [], 'tools': [],
-        'dependencies': [], 'dependencies_after': [], 'outputs_before': [], 'outputs_after': [],
-        'dependencies_complete': False, 'dependencies_after_complete': False,
-        'outputs_before_complete': False, 'outputs_after_complete': False,
-        'evidence_hashes': {}, 'machine': {'os': platform.platform(), 'architecture': platform.machine()}}
-    store.save(record)
-    start = time.monotonic()
-    def evidence(name, content):
-        atomic_write(directory / name, json.dumps(content, indent=2, ensure_ascii=False))
-        record['evidence_hashes'][name] = hashlib.sha256((directory / name).read_bytes()).hexdigest()
-    try:
-        if cancelled():
-            raise InterruptedError('Build cancelled before capture.')
-        output('Capturing source checkpoint…\n')
-        source = snapshot_folder(root, cancelled=cancelled, capture_text=recipe['capture_text'], exclusions=recipe['exclusions'])
-        source['checkpoint'] = {'name': ('Build · ' + recipe['name'])[:120],
-            'exclusions': recipe['exclusions'], 'git': git_details(root)}
-        evidence('source.json', source)
-        record['source_id'] = history.add(source, label=source['checkpoint']['name'])
-        if source['warnings'] or any(f.get('error') for f in source['files']):
-            record['warnings'].append('Source capture has issues; inspect AppTrail evidence before drawing conclusions.')
-        if baseline:
-            evidence('baseline.json', baseline)
-        output('Capturing dependency manifests and existing outputs…\n')
-        record['dependencies'] = dependency_evidence(root, recipe['exclusions'], cancelled)
-        record['dependencies_complete'] = True
-        record['outputs_before'] = collect_outputs(root, recipe['output_patterns'], cancelled)
-        record['outputs_before_complete'] = True
-        for index, tool in enumerate(recipe['tools']):
-            if cancelled():
-                raise InterruptedError('Build cancelled during tool probes.')
-            output('Probing ' + tool[0] + '…\n')
-            log = directory / f'tool-{index}.log'
-            entry = {'argv': tool, 'resolved_executable': shutil.which(tool[0])}
-            try:
-                entry.update(execute(tool, root, log, 10, cancelled, max_log_bytes=65536))
-                entry['output'] = log.read_text(encoding='utf-8', errors='replace')
-                record['evidence_hashes'][log.name] = hashlib.sha256(log.read_bytes()).hexdigest()
-            except OSError as exc:
-                entry['error'] = str(exc)
-            record['tools'].append(entry)
-            if entry.get('error') or entry.get('state') == 'timed_out' or entry.get('log_truncated'):
-                record['warnings'].append('Tool probe incomplete: ' + tool[0])
-        if cancelled():
-            raise InterruptedError('Build cancelled before command launch.')
-        record['build_started_at'] = now()
-        output('Running build command…\n')
-        execution = execute(command_argv(recipe), root, directory / 'build.log', recipe['timeout_seconds'], cancelled, output)
-        record.update(execution)
-        record['evidence_hashes']['build.log'] = hashlib.sha256((directory / 'build.log').read_bytes()).hexdigest()
-        record['status'] = ('success' if execution['exit_code'] == 0 else 'failed') if execution['state'] == 'completed' else execution['state']
-        output('\nCapturing outputs and post-build dependencies…\n')
-        # Cancellation still preserves outputs of the stopped command; hashing remains cancellable.
-        record['outputs_after'] = collect_outputs(root, recipe['output_patterns'], cancelled)
-        record['outputs_after_complete'] = True
-        record['dependencies_after'] = dependency_evidence(root, recipe['exclusions'], cancelled)
-        record['dependencies_after_complete'] = True
-        record['output_changes'] = table_changes(record['outputs_before'], record['outputs_after'])
-        if not record['outputs_after']:
-            record['warnings'].append('No output files matched the declared patterns.')
-        if any(f.get('error') for f in record['outputs_after'] + record['outputs_before'] + record['dependencies'] + record['dependencies_after']):
-            record['warnings'].append('Some file evidence could not be read or was unstable.')
-        if record.get('log_truncated'):
-            record['warnings'].append('Build log reached the 10 MiB capture limit; remaining output was drained but not saved.')
-    except (InterruptedError, KeyboardInterrupt) as exc:
-        record['status'] = 'cancelled'
-        record['warnings'].append(str(exc))
-    except Exception as exc:
-        record['status'] = 'error'
-        record['warnings'].append(str(exc))
-    finally:
-        log = directory / 'build.log'
-        if log.exists():
-            record['evidence_hashes']['build.log'] = hashlib.sha256(log.read_bytes()).hexdigest()
-        record['completed_at'] = now()
-        record['total_seconds'] = round(time.monotonic() - start, 3)
+    with store.run_lock(identity):
+        record = {'schema': 'buildtrail.run.v1', 'id': identity, 'recipe': recipe, 'started_at': now(),
+            'started_ns': time.time_ns(), 'completed_at': None, 'status': 'unfinished', 'exit_code': None, 'warnings': [], 'tools': [],
+            'dependencies': [], 'dependencies_after': [], 'outputs_before': [], 'outputs_after': [],
+            'dependencies_complete': False, 'dependencies_after_complete': False,
+            'outputs_before_complete': False, 'outputs_after_complete': False,
+            'evidence_hashes': {}, 'machine': {'os': platform.platform(), 'architecture': platform.machine()}}
         store.save(record)
-    return record
+        start = time.monotonic()
+        def evidence(name, content):
+            atomic_write(directory / name, json.dumps(content, indent=2, ensure_ascii=False))
+            record['evidence_hashes'][name] = hashlib.sha256((directory / name).read_bytes()).hexdigest()
+        try:
+            if cancelled():
+                raise InterruptedError('Build cancelled before capture.')
+            output('Capturing source checkpoint…\n')
+            source = snapshot_folder(root, cancelled=cancelled, capture_text=recipe['capture_text'], exclusions=recipe['exclusions'])
+            source['checkpoint'] = {'name': ('Build · ' + recipe['name'])[:120],
+                'exclusions': recipe['exclusions'], 'git': git_details(root)}
+            evidence('source.json', source)
+            record['source_id'] = history.add(source, label=source['checkpoint']['name'])
+            if source['warnings'] or any(f.get('error') for f in source['files']):
+                record['warnings'].append('Source capture has issues; inspect AppTrail evidence before drawing conclusions.')
+            if baseline:
+                evidence('baseline.json', baseline)
+            output('Capturing dependency manifests and existing outputs…\n')
+            record['dependencies'] = dependency_evidence(root, recipe['exclusions'], cancelled)
+            record['dependencies_complete'] = True
+            record['outputs_before'] = collect_outputs(root, recipe['output_patterns'], cancelled)
+            record['outputs_before_complete'] = True
+            for index, tool in enumerate(recipe['tools']):
+                if cancelled():
+                    raise InterruptedError('Build cancelled during tool probes.')
+                output('Probing ' + tool[0] + '…\n')
+                log = directory / f'tool-{index}.log'
+                entry = {'argv': tool, 'resolved_executable': shutil.which(tool[0])}
+                try:
+                    entry.update(execute(tool, root, log, 10, cancelled, max_log_bytes=65536))
+                    entry['output'] = log.read_text(encoding='utf-8', errors='replace')
+                    record['evidence_hashes'][log.name] = hashlib.sha256(log.read_bytes()).hexdigest()
+                except OSError as exc:
+                    entry['error'] = str(exc)
+                record['tools'].append(entry)
+                if entry.get('error') or entry.get('state') == 'timed_out' or entry.get('log_truncated'):
+                    record['warnings'].append('Tool probe incomplete: ' + tool[0])
+            if cancelled():
+                raise InterruptedError('Build cancelled before command launch.')
+            record['build_started_at'] = now()
+            output('Running build command…\n')
+            execution = execute(command_argv(recipe), root, directory / 'build.log', recipe['timeout_seconds'], cancelled, output)
+            record.update(execution)
+            record['evidence_hashes']['build.log'] = hashlib.sha256((directory / 'build.log').read_bytes()).hexdigest()
+            record['status'] = ('success' if execution['exit_code'] == 0 else 'failed') if execution['state'] == 'completed' else execution['state']
+            output('\nCapturing outputs and post-build dependencies…\n')
+            # Cancellation still preserves outputs of the stopped command; hashing remains cancellable.
+            record['outputs_after'] = collect_outputs(root, recipe['output_patterns'], cancelled)
+            record['outputs_after_complete'] = True
+            record['dependencies_after'] = dependency_evidence(root, recipe['exclusions'], cancelled)
+            record['dependencies_after_complete'] = True
+            record['output_changes'] = table_changes(record['outputs_before'], record['outputs_after'])
+            if not record['outputs_after']:
+                record['warnings'].append('No output files matched the declared patterns.')
+            if any(f.get('error') for f in record['outputs_after'] + record['outputs_before'] + record['dependencies'] + record['dependencies_after']):
+                record['warnings'].append('Some file evidence could not be read or was unstable.')
+            if record.get('log_truncated'):
+                record['warnings'].append('Build log reached the 10 MiB capture limit; remaining output was drained but not saved.')
+        except (InterruptedError, KeyboardInterrupt) as exc:
+            record['status'] = 'cancelled'
+            record['warnings'].append(str(exc))
+        except Exception as exc:
+            record['status'] = 'error'
+            record['warnings'].append(str(exc))
+        finally:
+            log = directory / 'build.log'
+            if log.exists():
+                record['evidence_hashes']['build.log'] = hashlib.sha256(log.read_bytes()).hexdigest()
+            record['completed_at'] = now()
+            record['total_seconds'] = round(time.monotonic() - start, 3)
+            store.save(record)
+        return record
 
 
 def source_comparison(store, before, after=None):
@@ -361,7 +377,7 @@ def source_comparison(store, before, after=None):
     else:
         old = load_snapshot(store.evidence(before, 'source.json'))
         new = load_snapshot(store.evidence(after, 'source.json'))
-        label = before['recipe']['name']
+        label = run_name(before)
     result = compare(old, new)
-    result['context'] = {'before': {'label': label}, 'after': {'label': (after or before)['recipe']['name']}}
+    result['context'] = {'before': {'label': label, 'notes': before.get('organization', {}).get('notes', '') if after is not None else ''}, 'after': {'label': run_name(after or before), 'notes': (after or before).get('organization', {}).get('notes', '')}}
     return result
