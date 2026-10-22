@@ -8,6 +8,16 @@ from .report import export_report
 
 
 def main():
+    # Windowed executables have no streams; legacy Windows redirected streams
+    # may not encode project paths or compiler output. Keep raw logs unchanged.
+    import os
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(errors='backslashreplace')
     parser = argparse.ArgumentParser(description='BuildTrail: build evidence alongside AppTrail checkpoints')
     parser.add_argument('--data-dir', type=Path, help='Override local BuildTrail storage')
     sub = parser.add_subparsers(dest='command')
@@ -20,13 +30,6 @@ def main():
     report.add_argument('after', nargs='?')
     report.add_argument('-o', '--output', type=Path, required=True)
     args = parser.parse_args()
-    # Windowed executables have no console streams; evidence is still saved.
-    if sys.stdout is None:
-        import os
-        sys.stdout = open(os.devnull, 'w')
-    if sys.stderr is None:
-        import os
-        sys.stderr = open(os.devnull, 'w')
     try:
         if args.command in (None, 'gui'):
             if args.data_dir:

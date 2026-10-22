@@ -175,7 +175,8 @@ class BuildTests(unittest.TestCase):
     def test_cli_run_and_report(self):
         recipe = self.base / 'recipe.json'
         recipe.write_text(json.dumps(self.recipe('print("cli ok")')))
-        env = dict(os.environ, LOCALAPPDATA=str(self.base / 'local'), XDG_DATA_HOME=str(self.base / 'local'))
+        env = dict(os.environ, LOCALAPPDATA=str(self.base / 'local'), XDG_DATA_HOME=str(self.base / 'local'),
+                   PYTHONIOENCODING='cp1252:strict')
         result = subprocess.run([sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'run', str(recipe)],
             capture_output=True, text=True, env=env, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
