@@ -214,12 +214,66 @@ class LogViewTests(unittest.TestCase):
         from buildtrail.logreport import export_log_report
         from buildtrail._apptrail.history import history_directory
         target = self.base / 'cli-logs.html'
-        result = subprocess.run([sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'logs', self.before['id'], self.after['id'], '-o', str(target)], capture_output=True, timeout=15)
+        result = subprocess.run([sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'logs', self.before['id'], self.after['id'], '--collapse', '-o', str(target)], capture_output=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('error C2143', target.read_text(encoding='utf-8'))
+        self.assertIn('id="collapse" type="checkbox" checked', target.read_text(encoding='utf-8'))
         for protected in (self.store.directory / 'report.html', history_directory() / 'report.html'):
             with self.assertRaisesRegex(ValueError, 'outside managed'):
                 export_log_report(self.store, self.before, self.after, protected)
         self.store.trash([self.after['id']])
         with self.assertRaisesRegex(ValueError, 'Trash'):
             export_log_report(self.store, self.before, self.after, target)
+
+    def test_fold_sections_search_reveal_and_preserve_coordinates(self):
+        window = self.open()
+        original = self.store.evidence(self.before, 'build.log').read_bytes()
+        self.assertTrue(window.folds)
+        window.set_all_folds(False)
+        start, end = window.folds[-1]
+        for text in window.texts.values():
+            self.assertEqual(int(text.tag_cget(f'fold_{start}', 'elide')), 1)
+        window.query.set('context line 100')
+        window.update_search()
+        self.assertEqual(len(window.matches), 2)
+        window.jump_match(1)
+        match = window.matches[window.match_index]
+        self.assertEqual(window.texts[match['side']].get(*window.match_range(match)), 'context line 100')
+        self.assertIn(start, window.expanded)
+        for text in window.texts.values():
+            self.assertEqual(int(text.tag_cget(f'fold_{start}', 'elide')), 0)
+        target = self.base / 'expanded-section.html'
+        with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showinfo'):
+            window.export_html()
+        html = target.read_text(encoding='utf-8')
+        self.assertIn(f'data-fold="{start}" data-start="{start}" data-end="{end}" data-expanded="true"', html)
+        window.toggle_fold(start)
+        self.assertNotIn(start, window.expanded)
+        window.set_all_folds(True)
+        self.assertEqual(window.expanded, {first for first, _ in window.folds})
+        window.collapse.set(False)
+        window.apply_folds()
+        for text in window.texts.values():
+            self.assertEqual(int(text.tag_cget(f'marker_{start}', 'elide')), 1)
+        self.assertEqual(self.store.evidence(self.before, 'build.log').read_bytes(), original)
+
+    def test_folded_unchanged_diagnostic_reveals_both_sides_and_exports(self):
+        window = self.open()
+        # The shared warning near the beginning can be folded in a long equal prefix.
+        from buildtrail.logdiff import align_logs
+        lines = ['header'] + ['warning: shared'] + [f'same {i}' for i in range(20)]
+        window.model = align_logs(lines + ['old'], lines + ['new'])
+        for text in window.texts.values():
+            text.configure(state='normal'); text.delete('1.0', 'end'); text.configure(state='disabled')
+        window.render()
+        window.filter_issues()
+        window.set_all_folds(False)
+        start = window.folds[0][0]
+        window.jump_issue(1)
+        self.assertIn(start, window.expanded)
+        self.assertIn('Before line 2', window.issue_status.get())
+        self.assertTrue(window.texts['before'].tag_ranges('current_issue'))
+        target = self.base / 'folded.html'
+        with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showinfo'):
+            window.export_html()
+        self.assertIn('id="collapse" type="checkbox" checked', target.read_text(encoding='utf-8'))

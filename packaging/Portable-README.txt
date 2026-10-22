@@ -1,4 +1,4 @@
-BuildTrail 0.4.0 — Windows x64 portable edition
+BuildTrail 0.5.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -82,3 +82,10 @@ report with search, error/warning and change navigation. Current search, filters
 and theme are preserved. JavaScript enables interactive controls; no network is
 used. CLI: BuildTrail.exe --data-dir LIBRARY logs BEFORE AFTER -o logs.html
 Saved logs are verified again before export; preview limits are disclosed.
+
+COLLAPSE UNCHANGED LOG LINES
+Enable Collapse unchanged lines in the log window or HTML report. Three context
+lines remain beside changes; section markers expand/collapse both panes together.
+Expand all and Collapse all are available. Search/issue navigation opens hidden
+results. Exports retain the collapse option and expanded sections. CLI supports
+logs BEFORE AFTER --collapse (add -o logs.html for direct HTML export).

@@ -155,3 +155,23 @@ def search_logs(rows, query, match_case=False, limit=MAX_MATCHES):
                     'end': boundaries[end] if boundaries is not None else end})
                 cursor = end
     return matches, False
+
+
+def unchanged_sections(rows, context=3):
+    """Inclusive aligned row ranges, leaving context beside each change."""
+    sections = []
+    has_changes = any(row['kind'] != 'equal' for row in rows)
+    start = 0
+    while start < len(rows):
+        if rows[start]['kind'] != 'equal':
+            start += 1
+            continue
+        end = start
+        while end < len(rows) and rows[end]['kind'] == 'equal':
+            end += 1
+        first = start + (context if start > 0 or not has_changes else 0)
+        last = end - (context if end < len(rows) or not has_changes else 0)
+        if first < last:
+            sections.append((first + 1, last))
+        start = end
+    return sections

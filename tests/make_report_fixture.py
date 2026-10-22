@@ -22,12 +22,12 @@ def main():
         store, history = BuildStore(base / 'builds'), SnapshotHistory(base / 'history')
         checkpoint, _ = capture_checkpoint(history, project, 'Before feature', ['dist/'])
         recipe = default_recipe(project)
-        recipe.update(shell='argv', argv=[sys.executable, '-c', "from pathlib import Path; Path('dist').mkdir(); Path('dist/demo.exe').write_bytes(b'demo artifact'); print('build succeeded'); print('warning: deprecated'); print('😀 a+b SHARED'); print('İstanbul'); print('x ' * 2100)"],
+        recipe.update(shell='argv', argv=[sys.executable, '-c', "from pathlib import Path; Path('dist').mkdir(); Path('dist/demo.exe').write_bytes(b'demo artifact'); print('build succeeded'); print('warning: deprecated'); print('😀 a+b SHARED'); print('İstanbul'); print('x ' * 2100); [print('warning: shared context' if i == 20 else f'context line {i}') for i in range(40)]"],
             tools=[[sys.executable, '--version']], output_patterns=['dist/**/*'], checkpoint_id=checkpoint)
         good = run_build(recipe, store, history)
         (project / 'source.py').write_text('value = broken\n')
         (project / 'requirements.txt').write_text('demo-package==2.0\n')
-        recipe['argv'] = [sys.executable, '-c', "import sys; print('compiler error: broken value'); print('warning: deprecated'); print('😀 a+b shared'); print('İstanbul'); print('x ' * 2100); print('<script>window.buildtrailInjected = true</script>'); sys.exit(2)"]
+        recipe['argv'] = [sys.executable, '-c', "import sys; print('compiler error: broken value'); print('warning: deprecated'); print('😀 a+b shared'); print('İstanbul'); print('x ' * 2100); [print('warning: shared context' if i == 20 else f'context line {i}') for i in range(40)]; print('<script>window.buildtrailInjected = true</script>'); sys.exit(2)"]
         bad = run_build(recipe, store, history)
         assert good['status'] == 'success' and bad['status'] == 'failed'
         store.update_metadata(good['id'], 'Known-good release', 'Smoke tests passed.\nKeep as the release reference.')
@@ -35,6 +35,11 @@ def main():
         from buildtrail.logreport import export_log_report
         export_log_report(store, good, bad, target.with_suffix('.logs.html'), query='a+b', match_case=True,
             issue_kind='Warnings', issue_side='After', theme='light')
+        from buildtrail.logdiff import load_log, align_logs, unchanged_sections
+        folds = unchanged_sections(align_logs(load_log(store, good)[1]['lines'], load_log(store, bad)[1]['lines'])['rows'])
+        export_log_report(store, good, bad, target.with_suffix('.folded.html'), collapse=True)
+        export_log_report(store, good, bad, target.with_suffix('.expanded.html'), collapse=True,
+                          expanded=[start for start, _ in folds])
         report = render_report(store, store.load(good['id']), store.load(bad['id']))
         # Public demo only: normalize temporary project/interpreter paths.
         from html import escape

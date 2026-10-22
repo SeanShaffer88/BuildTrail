@@ -29,3 +29,7 @@ scroll synchronization, and window/theme callback cleanup.
 ## Offline side-by-side log export (0.4.0)
 
 Reuses the verified, bounded standard-library log model. Python html.escape and atomic_write generate a self-contained HTML file; browser DOM APIs render search marks as text, with no external libraries or requests. A SHA-256 Content Security Policy allows only the embedded navigation script. Existing browser tests now also check log exports in Edge, including settings, navigation, escaped untrusted text, offline behavior and readable no-JavaScript fallback. No new dependency or vendored AppTrail modification.
+
+## Collapsed log context (0.5.0)
+
+One standard-library unchanged_sections model defines matching ranges for Tk and HTML. Tk uses elided tags with a stable aligned-row-to-display-row map; offline HTML uses shared section IDs and DOM visibility. Search and issue navigation retain all preview rows and reveal hidden destinations. No new dependency or vendored AppTrail change.

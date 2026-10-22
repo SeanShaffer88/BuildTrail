@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-10-22
+
+- Collapse unchanged log sections with three context lines beside changes in the desktop view and standalone HTML reports.
+- Expand/collapse individual sections or all sections together in both panes.
+- Search and issue navigation include collapsed lines and reveal selected results automatically.
+- Preserve collapse and expanded sections in HTML exports; add CLI `--collapse`. Saved evidence and original line numbers remain unchanged.
+
 ## 0.4.0 — 2026-10-21
 
 - Export verified side-by-side build logs to a standalone offline HTML report.

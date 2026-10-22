@@ -130,3 +130,13 @@ class LogModelTests(unittest.TestCase):
             record['evidence_hashes'] = {}
             with self.assertRaisesRegex(ValueError, 'no completed'):
                 load_log(Store(), record)
+
+    def test_unchanged_sections_keep_context_and_handle_edges(self):
+        from buildtrail.logdiff import unchanged_sections
+        def rows(kinds): return [{'kind': kind} for kind in kinds]
+        self.assertEqual(unchanged_sections([]), [])
+        self.assertEqual(unchanged_sections(rows(['equal'] * 6)), [])
+        self.assertEqual(unchanged_sections(rows(['equal'] * 10)), [(4, 7)])
+        self.assertEqual(unchanged_sections(rows(['equal'] * 10 + ['replace'] + ['equal'] * 10)), [(1, 7), (15, 21)])
+        self.assertEqual(unchanged_sections(rows(['replace'] + ['equal'] * 10 + ['add'])), [(5, 8)])
+        self.assertEqual(unchanged_sections(rows(['remove', 'add', 'replace'])), [])

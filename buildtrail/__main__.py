@@ -34,6 +34,7 @@ def main():
     logs.add_argument('before')
     logs.add_argument('after')
     logs.add_argument('-o', '--output', type=Path, help='Export an offline side-by-side HTML report instead of opening a window')
+    logs.add_argument('--collapse', action='store_true', help='Collapse unchanged log sections with three context lines')
     args = parser.parse_args()
     try:
         if args.command in (None, 'gui'):
@@ -52,7 +53,7 @@ def main():
             before, after = store.load(args.before), store.load(args.after)
             if args.output:
                 from .logreport import export_log_report
-                export_log_report(store, before, after, args.output)
+                export_log_report(store, before, after, args.output, collapse=args.collapse)
                 print('Exported:', args.output.resolve())
                 return 0
             import tkinter as tk
@@ -62,6 +63,7 @@ def main():
             root.withdraw()
             Theme(root, store.directory / 'preferences.json')
             window = LogDiffWindow(root, store, before, after)
+            window.collapse.set(args.collapse)
             def close():
                 window.close()
                 root.destroy()
