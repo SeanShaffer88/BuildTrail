@@ -18,14 +18,14 @@ def read_context(path):
         return DEFAULT_CONTEXT_LINES
 
 
-LOG_DEFAULTS = {'collapse': False, 'match_case': False,
+LOG_DEFAULTS = {'collapse': False, 'match_case': False, 'ignore_whitespace': False,
                 'issue_kind': 'Errors & warnings', 'issue_side': 'Both logs'}
 LOG_CHOICES = {'issue_kind': ('Errors & warnings', 'Errors', 'Warnings'),
                'issue_side': ('Both logs', 'Before', 'After')}
 
 
 def valid_option(key, value):
-    if key in ('collapse', 'match_case'):
+    if key in ('collapse', 'match_case', 'ignore_whitespace'):
         return type(value) is bool
     return isinstance(value, str) and value in LOG_CHOICES.get(key, ())
 

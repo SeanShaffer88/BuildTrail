@@ -289,7 +289,7 @@ class LogViewTests(unittest.TestCase):
         self.assertTrue(window.change_context())
         self.assertNotEqual(window.folds, old_folds)
         saved = json.loads(pref.read_text())
-        self.assertEqual(saved, {'theme': 'light', 'context_lines': 42, 'unrelated': True, 'log_context_lines': 8, 'log_diff_options': {'collapse': True, 'match_case': False, 'issue_kind': 'Errors & warnings', 'issue_side': 'Both logs'}})
+        self.assertEqual(saved, {'theme': 'light', 'context_lines': 42, 'unrelated': True, 'log_context_lines': 8, 'log_diff_options': {'collapse': True, 'match_case': False, 'ignore_whitespace': False, 'issue_kind': 'Errors & warnings', 'issue_side': 'Both logs'}})
         window.query.set('context line 100'); window.update_search(); window.jump_match(1)
         match = window.matches[window.match_index]
         self.assertEqual(window.texts[match['side']].get(*window.match_range(match)), 'context line 100')
@@ -399,4 +399,27 @@ class LogViewTests(unittest.TestCase):
         self.assertNotIn('id="collapse" type="checkbox" checked', html)
         self.assertNotIn('id="case" type="checkbox" checked', html)
         self.assertIn('value="warning" selected', html); self.assertIn('value="before" selected', html)
-        self.assertEqual(read_options(path), {'collapse': True, 'match_case': True, 'issue_kind': 'Errors', 'issue_side': 'After'})
+        self.assertEqual(read_options(path), {'collapse': True, 'match_case': True, 'ignore_whitespace': False, 'issue_kind': 'Errors', 'issue_side': 'After'})
+
+    def test_whitespace_toggle_persistence_search_and_export(self):
+        import subprocess
+        window = self.open()
+        window.log_previews = ({'lines': ['head', '  warning: spaced', 'x = 1', 'tail'], 'notices': []},
+                               {'lines': ['head', 'warning: spaced ', '', 'x=1', 'tail'], 'notices': []})
+        window.ignore_whitespace.set(True); window.change_whitespace()
+        self.assertEqual(window.model['changes'], [])
+        self.assertIn('whitespace-only', window.summary.get())
+        window.query.set('warning'); window.update_search(); self.assertEqual(len(window.matches), 2)
+        window.jump_match(1); self.assertIn('Before line 2', window.search_status.get())
+        other = self.open(); self.assertTrue(other.ignore_whitespace.get())
+        target = self.base / 'whitespace.html'
+        with patch('buildtrail.logview.filedialog.asksaveasfilename', return_value=str(target)), patch('buildtrail.logview.messagebox.showinfo'):
+            other.export_html()
+        self.assertIn('id="ignore-whitespace" type="checkbox" checked', target.read_text(encoding='utf-8'))
+        args = [sys.executable, '-m', 'buildtrail', '--data-dir', str(self.store.directory), 'logs', self.before['id'], self.after['id'], '-o', str(target)]
+        result = subprocess.run(args, capture_output=True, timeout=15); self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('id="ignore-whitespace" type="checkbox" checked', target.read_text(encoding='utf-8'))
+        result = subprocess.run(args + ['--no-ignore-whitespace'], capture_output=True, timeout=15); self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('id="ignore-whitespace" type="checkbox" checked', target.read_text(encoding='utf-8'))
+        window.ignore_whitespace.set(False); window.change_whitespace()
+        self.assertTrue(window.model['changes']); self.assertFalse(self.open().ignore_whitespace.get())

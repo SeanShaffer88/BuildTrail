@@ -45,6 +45,12 @@ def main():
         from buildtrail.logsettings import save_options
         save_options(store.directory / 'preferences.json', collapse=True, match_case=True, issue_kind='Warnings', issue_side='Before')
         export_log_report(store, good, bad, target.with_suffix('.saved.html'))
+        # Whitespace-only alignment fixture; raw bytes are still captured by real runs.
+        recipe['argv'] = [sys.executable, '-c', "print('head'); print('  warning: spaced'); print('x = 1'); print('tail')"]
+        spaced = run_build(recipe, store, history)
+        recipe['argv'] = [sys.executable, '-c', "print('head'); print('warning: spaced '); print(''); print('x=1'); print('tail')"]
+        compact = run_build(recipe, store, history)
+        export_log_report(store, spaced, compact, target.with_suffix('.whitespace.html'), ignore_whitespace=True, collapse=False, issue_kind='Errors & warnings', issue_side='Both logs')
         report = render_report(store, store.load(good['id']), store.load(bad['id']))
         # Public demo only: normalize temporary project/interpreter paths.
         from html import escape

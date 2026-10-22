@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 — 2026-10-22
+
+- Ignore whitespace-only log differences, including indentation and blank-line additions/removals, while preserving original text, line numbers, search and diagnostics.
+- Remember the option between sessions; preserve it in HTML exports, with an offline live toggle between embedded alignments.
+- Add transient CLI `--ignore-whitespace` / `--no-ignore-whitespace` overrides.
+- Document repository publication, description, topics and README requirements for completed tools.
+
 ## 0.7.0 — 2026-10-22
 
 - Remember collapse mode, match case, severity and build filters between log comparisons and sessions.

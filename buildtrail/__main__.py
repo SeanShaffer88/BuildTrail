@@ -39,6 +39,7 @@ def main():
     logs.add_argument('--match-case', action=argparse.BooleanOptionalAction, default=None, help='Override saved search case matching')
     logs.add_argument('--severity', choices=['all', 'errors', 'warnings'], help='Override saved severity filter')
     logs.add_argument('--build', choices=['both', 'before', 'after'], help='Override saved build filter')
+    logs.add_argument('--ignore-whitespace', action=argparse.BooleanOptionalAction, default=None, help='Override saved whitespace-only change filtering')
     args = parser.parse_args()
     try:
         if args.command in (None, 'gui'):
@@ -55,7 +56,7 @@ def main():
         store = BuildStore(args.data_dir)
         if args.command == 'logs':
             before, after = store.load(args.before), store.load(args.after)
-            overrides = dict(collapse=args.collapse, match_case=args.match_case,
+            overrides = dict(collapse=args.collapse, match_case=args.match_case, ignore_whitespace=args.ignore_whitespace,
                 issue_kind={'all': 'Errors & warnings', 'errors': 'Errors', 'warnings': 'Warnings'}.get(args.severity),
                 issue_side={'both': 'Both logs', 'before': 'Before', 'after': 'After'}.get(args.build))
             if args.output:

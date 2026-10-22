@@ -104,11 +104,11 @@ class LogReportTests(unittest.TestCase):
             path.write_text(json.dumps({'log_diff_options': value}))
             self.assertEqual(read_options(path), LOG_DEFAULTS)
         path.write_text(json.dumps({'theme': 'light', 'log_context_lines': 9, 'log_diff_options': {'collapse': 'false', 'match_case': True, 'issue_kind': ['Errors'], 'issue_side': 'After'}}))
-        self.assertEqual(read_options(path), {'collapse': False, 'match_case': True, 'issue_kind': 'Errors & warnings', 'issue_side': 'After'})
+        self.assertEqual(read_options(path), {'collapse': False, 'match_case': True, 'ignore_whitespace': False, 'issue_kind': 'Errors & warnings', 'issue_side': 'After'})
         save_options(path, collapse=True)
         saved = json.loads(path.read_text())
         self.assertEqual(saved['theme'], 'light'); self.assertEqual(saved['log_context_lines'], 9)
-        for kwargs in ({'collapse': 1}, {'match_case': 'true'}, {'issue_kind': 'bad'}, {'issue_side': False}):
+        for kwargs in ({'ignore_whitespace': 'true'}, {'collapse': 1}, {'match_case': 'true'}, {'issue_kind': 'bad'}, {'issue_side': False}):
             with self.assertRaises(ValueError):
                 save_options(path, **kwargs)
         report = render_log_report(self.store, *self.records.values())

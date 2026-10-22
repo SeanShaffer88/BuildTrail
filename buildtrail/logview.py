@@ -30,6 +30,8 @@ class LogDiffWindow(tk.Toplevel):
         options = resolve_options(self.preferences_path, **overrides)
         self.context_value = read_context(self.preferences_path)
         self.context = tk.StringVar(self, value=str(self.context_value))
+        self.ignore_whitespace = tk.BooleanVar(self, value=options['ignore_whitespace'])
+        self.log_previews = None
         self.collapse = tk.BooleanVar(self, value=options['collapse'])
         self.matches = []
         self.match_index = self.issue_index = self.change_index = -1
@@ -92,6 +94,7 @@ class LogDiffWindow(tk.Toplevel):
         ttk.Button(folds, text='Expand all', command=lambda: self.set_all_folds(True)).pack(side='left', padx=6)
         ttk.Button(folds, text='Collapse all', command=lambda: self.set_all_folds(False)).pack(side='left')
         ttk.Label(folds, text='Click a section marker to expand or collapse it.').pack(side='left', padx=8)
+        ttk.Checkbutton(frame, text='Ignore whitespace-only changes (including indentation and blank lines)', variable=self.ignore_whitespace, command=self.change_whitespace).pack(anchor='w', pady=4)
         panes = ttk.Frame(frame)
         panes.pack(fill='both', expand=True, pady=(6, 0))
         panes.columnconfigure(0, weight=1, uniform='logs')
@@ -126,11 +129,12 @@ class LogDiffWindow(tk.Toplevel):
             self.theme_trace = self.theme.mode.trace_add('write', lambda *_: self.update_colors())
         self.update_colors()
         stop, events = self.stop, self.events
+        initial_ignore = self.ignore_whitespace.get()
         def worker():
             try:
                 a, left = load_log(store, before)
                 b, right = load_log(store, after)
-                model = align_logs(left['lines'], right['lines'], stop.is_set)
+                model = align_logs(left['lines'], right['lines'], stop.is_set, ignore_whitespace=initial_ignore)
                 events.put(('ready', (a, b, left, right, model)))
             except Exception as exc:
                 events.put(('error', str(exc)))
@@ -177,17 +181,26 @@ class LogDiffWindow(tk.Toplevel):
             self.summary.set('Log comparison unavailable: ' + payload)
             return
         a, b, left, right, self.model = payload
+        self.log_previews = (left, right)
+        if self.model['ignore_whitespace'] != self.ignore_whitespace.get():
+            self.model = align_logs(left['lines'], right['lines'], ignore_whitespace=self.ignore_whitespace.get())
         self.headings['before'].configure(text=self.heading('before', a))
         self.headings['after'].configure(text=self.heading('after', b))
-        notices = [f'{side}: {note}' for side, log in (('Before', left), ('After', right)) for note in log['notices']]
-        if self.model['positional_fallback']:
-            notices.append('Large edited section is aligned by position; surrounding equal lines remain anchored.')
-        self.summary.set(f"{len(left['lines'])} before / {len(right['lines'])} after visible lines · {len(self.model['changes'])} change section(s). " + ' '.join(notices))
+        self.update_summary()
         self.render()
         self.ready = True
         self.export_button.configure(state='normal')
         self.filter_issues()
         self.update_search()
+
+    def update_summary(self):
+        left, right = self.log_previews
+        notices = [f'{side}: {note}' for side, log in (('Before', left), ('After', right)) for note in log['notices']]
+        if self.model['positional_fallback']:
+            notices.append('Large edited section is aligned by position; surrounding equal lines remain anchored.')
+        if self.ignore_whitespace.get():
+            notices.append(f"{self.model['ignored_whitespace']} whitespace-only aligned row(s) ignored; original text retained.")
+        self.summary.set(f"{len(left['lines'])} before / {len(right['lines'])} after visible lines · {len(self.model['changes'])} change section(s). " + ' '.join(notices))
 
     def export_html(self):
         if not self.ready or not self.change_context():
@@ -201,7 +214,7 @@ class LogDiffWindow(tk.Toplevel):
             from pathlib import Path
             from .logreport import export_log_report
             export_log_report(self.store, *self.records, Path(path), query=self.query.get(),
-                match_case=self.match_case.get(), issue_kind=self.issue_kind.get(),
+                match_case=self.match_case.get(), ignore_whitespace=self.ignore_whitespace.get(), issue_kind=self.issue_kind.get(),
                 issue_side=self.issue_side.get(), collapse=self.collapse.get(), context_lines=self.context_value, expanded=sorted(self.expanded), theme=self.theme.mode.get() if self.theme else 'dark')
             messagebox.showinfo('Export complete', 'Saved offline side-by-side log report:\n' + path, parent=self)
         except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
@@ -238,6 +251,18 @@ class LogDiffWindow(tk.Toplevel):
             save_options(self.preferences_path, **changes)
         except OSError:
             messagebox.showwarning('Log diff preferences', 'Settings changed for this session, but the preferences could not be saved.', parent=self)
+
+    def change_whitespace(self):
+        if self.ready:
+            left, right = self.log_previews
+            self.model = align_logs(left['lines'], right['lines'], ignore_whitespace=self.ignore_whitespace.get())
+            self.expanded.clear()
+            self.change_index = -1
+            self.update_summary()
+            self.render()
+            self.filter_issues()
+            self.update_search()
+        self.save_log_options(ignore_whitespace=self.ignore_whitespace.get())
 
     def change_collapse(self):
         self.apply_folds()

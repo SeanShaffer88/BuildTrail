@@ -1,4 +1,4 @@
-BuildTrail 0.7.0 — Windows x64 portable edition
+BuildTrail 0.8.0 — Windows x64 portable edition
 
 Source and updates: https://github.com/SeanShaffer88/BuildTrail
 MIT licensed; see licenses/. Python and Tcl/Tk notices are included.
@@ -105,3 +105,11 @@ open window settings; direct CLI exports reuse saved options. CLI overrides:
 --severity all|errors|warnings, --build both|before|after. Overrides are transient.
 Search text and individual expanded sections are per comparison, not saved as
 preferences. Standalone reports do not modify app preferences.
+
+IGNORE WHITESPACE-ONLY CHANGES
+Enable this option in the log window or exported HTML. Alignment ignores spaces,
+tabs, indentation and blank-line-only changes, keeping original text/numbers.
+Search and diagnostics still use original preview text. The app remembers the
+option; HTML includes both alignments for offline switching. Whitespace may be
+meaningful in log data; turn filtering off when needed. CLI transient overrides:
+--ignore-whitespace / --no-ignore-whitespace.

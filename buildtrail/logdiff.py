@@ -79,16 +79,19 @@ def load_log(store, record):
     return record, log
 
 
-def align_logs(before, after, cancelled=lambda: False):
+def align_logs(before, after, cancelled=lambda: False, *, ignore_whitespace=False):
     """Exact bounded middle alignment, with explicit positional fallback for large edits."""
+    normalize = lambda value: ''.join(value.split())
+    akeys = [normalize(line) for line in before] if ignore_whitespace else before
+    bkeys = [normalize(line) for line in after] if ignore_whitespace else after
     prefix = 0
-    while prefix < min(len(before), len(after)) and before[prefix] == after[prefix]:
+    while prefix < min(len(before), len(after)) and akeys[prefix] == bkeys[prefix]:
         prefix += 1
     suffix = 0
-    while suffix < min(len(before), len(after)) - prefix and before[-suffix - 1] == after[-suffix - 1]:
+    while suffix < min(len(before), len(after)) - prefix and akeys[-suffix - 1] == bkeys[-suffix - 1]:
         suffix += 1
     left_end, right_end = len(before) - suffix, len(after) - suffix
-    left, right = before[prefix:left_end], after[prefix:right_end]
+    left, right = akeys[prefix:left_end], bkeys[prefix:right_end]
     fallback = len(left) * len(right) > MAX_ALIGNMENT_PRODUCT
     if fallback:
         opcodes = [('replace', 0, len(left), 0, len(right))]
@@ -100,7 +103,7 @@ def align_logs(before, after, cancelled=lambda: False):
         y = after[b] if b is not None else None
         rows.append({'before': x, 'after': y, 'before_number': a + 1 if a is not None else None,
             'after_number': b + 1 if b is not None else None,
-            'kind': 'equal' if x == y else 'add' if a is None else 'remove' if b is None else 'replace'})
+            'kind': 'equal' if x == y or (ignore_whitespace and normalize(x or '') == normalize(y or '')) else 'add' if a is None else 'remove' if b is None else 'replace'})
     for i in range(prefix):
         add(i, i)
     for _, a, b, c, d in opcodes:
@@ -121,7 +124,8 @@ def align_logs(before, after, cancelled=lambda: False):
             kind = severity(row[side]) if row[side] is not None else None
             if kind:
                 diagnostics.append({'side': side, 'row': index, 'number': row[side + '_number'], 'severity': kind})
-    return {'rows': rows, 'changes': changes, 'diagnostics': diagnostics, 'positional_fallback': fallback}
+    return {'rows': rows, 'changes': changes, 'diagnostics': diagnostics, 'positional_fallback': fallback, 'ignore_whitespace': ignore_whitespace,
+            'ignored_whitespace': sum(row['kind'] == 'equal' and row['before'] != row['after'] for row in rows)}
 
 
 def search_logs(rows, query, match_case=False, limit=MAX_MATCHES):

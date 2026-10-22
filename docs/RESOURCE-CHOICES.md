@@ -41,3 +41,7 @@ BuildTrail owns the validated log_context_lines preference (0–100, default 3),
 ## Remembered log diff options (0.7.0)
 
 Typed validation and existing standard-library preference I/O store a BuildTrail-owned log_diff_options object. Each user action merges only the changed control to preserve other windows' updates and unrelated settings. Restore and rendering do not write preferences; CLI overrides stay transient. HTML uses explicit window settings or validated saved defaults. No dependency or vendored AppTrail change.
+
+## Whitespace-aware log comparison (0.8.0)
+
+Existing difflib alignment compares normalized non-whitespace keys when requested, while retaining original rows for display, search, diagnostics and line numbers. Blank-line-only insertions/removals are classified as unchanged. Offline reports embed both bounded models in inert DOM templates; switching swaps panes and reinitializes navigation with text-only search marks. No external code, new dependency or vendored AppTrail change.

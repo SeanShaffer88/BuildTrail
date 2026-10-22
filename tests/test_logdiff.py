@@ -140,3 +140,19 @@ class LogModelTests(unittest.TestCase):
         self.assertEqual(unchanged_sections(rows(['equal'] * 10 + ['replace'] + ['equal'] * 10)), [(1, 7), (15, 21)])
         self.assertEqual(unchanged_sections(rows(['replace'] + ['equal'] * 10 + ['add'])), [(5, 8)])
         self.assertEqual(unchanged_sections(rows(['remove', 'add', 'replace'])), [])
+
+    def test_ignore_whitespace_preserves_text_and_line_numbers(self):
+        before = ['header', '  warning:   deprecated', 'value = 1', 'tail']
+        after = ['header', '\twarning: deprecated ', '', 'value=1', 'tail']
+        raw = align_logs(before, after)
+        model = align_logs(before, after, ignore_whitespace=True)
+        self.assertTrue(raw['changes']); self.assertEqual(model['changes'], [])
+        self.assertGreater(model['ignored_whitespace'], 0)
+        self.assertEqual([row['before'] for row in model['rows'] if row['before_number'] is not None], before)
+        self.assertEqual([row['after'] for row in model['rows'] if row['after_number'] is not None], after)
+        self.assertEqual([(x['side'], x['number']) for x in model['diagnostics']], [('before', 2), ('after', 2)])
+        self.assertEqual(len(search_logs(model['rows'], 'warning')[0]), 2)
+        meaningful = align_logs(['x = 1', 'same'], ['x=2', 'same'], ignore_whitespace=True)
+        self.assertTrue(meaningful['changes'])
+        self.assertEqual(align_logs([], ['  ', '\t'], ignore_whitespace=True)['changes'], [])
+        self.assertTrue(align_logs([], ['real'], ignore_whitespace=True)['changes'])

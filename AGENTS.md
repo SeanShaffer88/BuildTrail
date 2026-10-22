@@ -6,3 +6,5 @@
 - Do not classify unchanged outputs as freshly built, absent incomplete evidence as confirmed removal, or manifest files as a complete installed dependency graph.
 - Preserve AppTrail's shared history and snapshot compatibility. Vendored provenance is in THIRD-PARTY-NOTICES.md; document any modifications there and test cross-app behavior.
 - Release Windows GUI builds with the pinned packaging script and license notices. Default CI builds should not upload redundant storage artifacts.
+
+- Publish completed tool releases to their project repositories after validation. Before publishing, verify the repository has an accurate description, relevant topics, and a README covering purpose, download/setup, usage, limits, license and validation. Keep those details current as features change.
